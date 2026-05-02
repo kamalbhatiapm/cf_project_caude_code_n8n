@@ -1,0 +1,13 @@
+# Override GitHub Linguist language detection
+
+# n8n workflow JSONs contain JavaScript code nodes
+*.json linguist-language=JavaScript
+
+# SQL schema files
+*.sql linguist-language=SQL
+
+# HTML documentation
+*.html linguist-language=HTML
+
+# Markdown documentation (show as language, not prose)
+*.md linguist-documentation=false
