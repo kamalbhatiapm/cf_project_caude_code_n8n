@@ -16,7 +16,7 @@
 
 ## What It Does
 
-Every Monday, CalmFalcon runs a pipeline that:
+CalmFalcon's pipeline is designed to run weekly (with a Monday 6AM schedule trigger in n8n). Each run:
 
 1. **Ingests** 200+ signals from 14 Exa web search queries + 3-tier GitHub trending (26 AI orgs)
 2. **Clusters** signals into 6-8 themes using vendor dedup, trend clustering, and keyword grouping
@@ -24,14 +24,14 @@ Every Monday, CalmFalcon runs a pipeline that:
 4. **Classifies** each as **ACT** (needs action now) or **WATCH** (track over 30 days)
 5. **Writes** an executive-ready weekly brief with "Why It Matters" and "What You Can Do" for each theme
 
-The output is a brief you can forward to your CTO without editing.
+The output is a brief you can forward to your CTO without editing. Currently runs are triggered manually; weekly scheduling is ready to activate for Beta.
 
 ---
 
 ## How It Works — 4-Agent Pipeline
 
 ```
-Schedule Trigger (Mon 6AM)
+Schedule Trigger (Mon 6AM — ready to activate)
        │
        ▼
 ┌─────────────────────────────────────────────────────┐
