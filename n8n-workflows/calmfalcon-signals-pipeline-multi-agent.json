@@ -1,0 +1,888 @@
+{
+  "name": "CalmFalcon Signals Pipeline \u2014 v20 (Multi-Agent + Exa + Supabase)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# CalmFalcon AI Signals Intelligence Pipeline\n**v20 \u2014 Exa + 3-Tier GitHub + Balanced Mix**\n\nRuns every Monday 6 AM (or manually). Fetches ~200 AI signals from Exa (14 queries) + GitHub Trending (3-tier: releases + new repos + velocity spikes, cap 50) \u2192 clusters signals by keyword with coherence threshold \u2192 Theme Selector picks exactly 8 (max 3 ACT, min 5 WATCH) with enterprise AI relevance gate \u2192 Theme Writer writes one theme per cluster (8 parallel LLM calls) \u2192 Verifier QC \u2192 Deterministic scoring (cap 95%) \u2192 Weekly brief \u2192 Supabase.\n\n**Pipeline:** Trigger \u2192 Prompt Version \u2192 Build Queries \u2192 Fetch (Exa + GitHub) \u2192 Process Signals \u2192 Rank Top 120 \u2192 Prior Context \u2192 Evidence Pack \u2192 Signal Clusters \u2192 Theme Selector \u2192 Split \u2192 Theme Writer (\u00d78) \u2192 Aggregate \u2192 Verifier \u2192 Score \u2192 Brief Writer \u2192 Save",
+        "height": 80,
+        "width": 3240,
+        "color": 4
+      },
+      "id": "sticky-overview",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## STEP 1 \u2014 TRIGGER\nFires every Monday at 6 AM.\nSwap to Manual Trigger during testing.",
+        "height": 300,
+        "width": 220,
+        "color": 1
+      },
+      "id": "sticky-trigger",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## STEP 2 \u2014 SIGNAL INGESTION\n**Build Search Queries:** 14 queries split by intent:\n- 3 release queries (vendor domains, opensource) \u2192 feed ACT themes\n- 7 trend queries (agents, enterprise, infra, engineering, safety, business, OSS) \u2192 feed WATCH themes\n- 2 research queries (arxiv, papers)\n- 2 newsletter/media queries (20 domains: Ben's Bites, TechCrunch, etc.)\nAll queries use Exa with `startPublishedDate`/`endPublishedDate` (ISO 8601, last 7 days). GitHub excluded via `excludeDomains`.\n\n**Fetch via Exa:** `numResults:20` per query. Returns `publishedDate` on all results. Uses `category: \"news\"` or `\"research paper\"`.\n\n**Fetch GitHub Trending:** 3-tier logic (runs parallel with Exa):\n- Tier 1: Tagged releases from 26 AI orgs (last 7 days). Skips alpha/beta/RC.\n- Tier 2: New repos created in last 14 days with stars >50.\n- Tier 3: Velocity spikes \u2014 established repos with 2x+ commit increase vs 4-week avg.\nCap: top 50 by score. Requires GITHUB_TOKEN and EXA_API_KEY workflow variables.\n\n**Process Signals:** Normalize + deduplicate. GitHub URLs from Exa are filtered (GitHub node handles those). Signal IDs use 32-char base64.",
+        "height": 300,
+        "width": 560,
+        "color": 1
+      },
+      "id": "sticky-ingestion",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        216,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## STEP 3 \u2014 CONTEXT & CLUSTERING\n**Retrieve Prior Context:** Fetches last week's themes from Supabase for WoW delta detection. Fails gracefully on first run.\n\n**Build Evidence Pack:** Assembles prompt payload \u2014 signal cards, prior week context, ingestion stats. Emits `top_signals` array for citation URL flow to Supabase.\n\n**Signal Cluster Builder:** Groups signals by vendor domain (1 cluster per vendor family) + keyword overlap. Coherence threshold: signals must share \u22652 keywords with 30%+ of cluster peers. GitHub release singletons merged into 1 \"AI Framework Release Roundup\" cluster.",
+        "height": 300,
+        "width": 440,
+        "color": 1
+      },
+      "id": "sticky-context",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        792,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## STEP 4 \u2014 AI ANALYSIS (GPT-4 Turbo)\n**Theme Selector:** Picks exactly 8 clusters. Enforces:\n- Max 3 ACT-candidates (releases/launches)\n- Min 5 WATCH-candidates (trends/patterns/ecosystem shifts)\n- Enterprise AI relevance gate (filters non-AI tools, consumer apps, alpha releases)\n- Anti-release-bias check\n- 1 cluster per vendor, 1 per topic\n\n**Split Clusters \u2192 Theme Writer (\u00d78):** Each Theme Writer sees only ONE cluster's signals. Anti-hallucination checks, date guard, and evidence grounding enforced per theme.\n\n**Verifier Agent:** 12-rule QC pass. Validates signal IDs, strips hallucinated citations, enforces title specificity, confidence spread, and actionable language.",
+        "height": 300,
+        "width": 520,
+        "color": 3
+      },
+      "id": "sticky-ai",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## STEP 5 \u2014 SCORING\nRule-based adjustments on AI scores:\n- Source diversity bonus (+12 for \u22653 types, +6 for \u22652)\n- Signal count bonus (+10 for \u22656, +5 for \u22654, +2 for \u22652)\n- Velocity delta (ACT +8, WATCH -5)\n- Single-signal cap at 65%\n- **Confidence ceiling: 95% max**\n\nResolves citation URLs from signal IDs via signal map. Detects WoW continuations via fuzzy title matching.",
+        "height": 300,
+        "width": 340,
+        "color": 1
+      },
+      "id": "sticky-scoring",
+      "name": "Sticky Note5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1784,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## STEP 6 \u2014 WEEKLY BRIEF\nGPT-4 Turbo writes a \u2264800 word markdown brief.\nPeer-level tone for AI Platform PMs and Engineering Leads.\n\nFormat: Executive Summary \u2192 ACT themes (highest confidence first) \u2192 WATCH themes \u2192 Watch List \u2192 Key Takeaway.",
+        "height": 300,
+        "width": 340,
+        "color": 3
+      },
+      "id": "sticky-brief",
+      "name": "Sticky Note6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2140,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## STEP 7 \u2014 SAVE TO SUPABASE\nThree sequential upserts:\n- **pipeline_runs** \u2014 run stats, theme count, avg confidence, prompt_version_id\n- **themes** \u2014 all fields + citations JSONB + WoW delta. `signal_type` stored as ACT/WATCH.\n- **weekly_briefs** \u2014 full markdown brief + key_takeaway\n\nUpsert on conflict \u2014 safe to rerun any week.",
+        "height": 300,
+        "width": 340,
+        "color": 4
+      },
+      "id": "sticky-save",
+      "name": "Sticky Note7",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2496,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "15524904-4455-426e-ae92-bd31c877da83",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "notes": "STEP 1: Every Monday 6 AM. Swap for Manual Trigger during testing."
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst startOfYear = new Date(now.getFullYear(), 0, 1);\nconst weekNumber = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);\n\n// Date range: last 7 days in ISO 8601\nconst startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();\nconst endDate = now.toISOString();\n\n// GitHub is excluded from all Exa queries \u2014 GitHub data comes via the dedicated \"Fetch GitHub Trending\" node\nconst NO_GITHUB = ['github.com'];\n\nconst queries = [\n  // \u2500\u2500\u2500 RELEASE QUERIES (feed ACT themes) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  // These use release/launch/announcement language to find specific events\n  { query: 'AI model release announcement new version launch', category: 'vendor', weight: 90, searchCategory: 'news', include_domains: ['openai.com', 'anthropic.com', 'deepmind.google', 'ai.meta.com', 'azure.microsoft.com', 'aws.amazon.com', 'nvidia.com', 'mistral.ai', 'cohere.com', 'groq.com', 'together.ai', 'fireworks.ai', 'huggingface.co', 'cerebras.net', 'blog.google', 'ai.google.dev'] },\n  { query: 'AI platform update API changelog pricing enterprise feature release', category: 'vendor_platform', weight: 88, searchCategory: 'news', include_domains: ['openai.com', 'anthropic.com', 'azure.microsoft.com', 'aws.amazon.com', 'nvidia.com', 'mistral.ai', 'cohere.com', 'groq.com', 'together.ai', 'fireworks.ai', 'huggingface.co', 'databricks.com', 'langchain.com', 'llamaindex.ai', 'wandb.ai', 'pinecone.io', 'weaviate.io', 'qdrant.tech', 'arize.com', 'scale.com', 'snowflake.com', 'ibm.com', 'cerebras.net'] },\n  { query: 'open source AI model released weights available download',            category: 'opensource',      weight: 68, searchCategory: 'news', exclude_domains: NO_GITHUB },\n\n  // \u2500\u2500\u2500 TREND QUERIES (feed WATCH themes) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  // These use pattern/shift/adoption language to find ecosystem trends\n  { query: 'AI agents enterprise adoption production challenges scaling patterns',  category: 'agents_trend',    weight: 76, searchCategory: 'news', exclude_domains: NO_GITHUB },\n  { query: 'enterprise AI infrastructure strategy cost optimization efficiency',    category: 'enterprise_trend', weight: 74, searchCategory: 'news', exclude_domains: NO_GITHUB },\n  { query: 'AI compute cost trends GPU availability inference pricing comparison',  category: 'infra_trend',     weight: 68, searchCategory: 'news', exclude_domains: NO_GITHUB },\n  { query: 'RAG retrieval augmented generation production evaluation comparison',   category: 'engineering_trend', weight: 65, searchCategory: 'news', exclude_domains: NO_GITHUB },\n  { query: 'open source vs proprietary AI models enterprise evaluation benchmark',  category: 'oss_trend',       weight: 66, searchCategory: 'news', exclude_domains: NO_GITHUB },\n  { query: 'AI regulation compliance enterprise impact governance policy',          category: 'safety_trend',    weight: 70, searchCategory: 'news', exclude_domains: NO_GITHUB },\n  { query: 'generative AI startup funding acquisition consolidation market shift',  category: 'business_trend',  weight: 62, searchCategory: 'news', exclude_domains: NO_GITHUB },\n\n  // \u2500\u2500\u2500 RESEARCH QUERIES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  { query: 'large language model benchmark evaluation research results',            category: 'research',        weight: 72, searchCategory: 'research paper', exclude_domains: NO_GITHUB },\n  { query: 'LLM inference efficiency serving latency throughput optimization',      category: 'papers',          weight: 80, searchCategory: 'research paper', include_domains: ['arxiv.org', 'paperswithcode.com', 'semanticscholar.org'] },\n\n  // \u2500\u2500\u2500 NEWSLETTER & MEDIA QUERIES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  { query: 'AI weekly roundup infrastructure enterprise trends analysis',           category: 'newsletter',      weight: 74, searchCategory: 'news', include_domains: ['newsletter.theaiedge.io', 'bensbites.com', 'therundown.ai', 'alphasignal.ai', 'substack.com', 'import-ai.net', 'jack-clark.net', 'lastweekin.ai', 'aitidbits.substack.com', 'simonwillison.net'] },\n  { query: 'AI news analysis enterprise infrastructure platform trends',            category: 'newsletter_media', weight: 72, searchCategory: 'news', include_domains: ['techcrunch.com', 'venturebeat.com', 'theverge.com', 'arstechnica.com', 'theregister.com', 'semafor.com', 'bloomberg.com', 'reuters.com', 'wired.com', 'thenewstack.io'] },\n];\n\nreturn [{ json: {\n  queries,\n  pipeline_date: now.toISOString().split('T')[0],\n  start_date: startDate,\n  end_date: endDate,\n  week_number: weekNumber,\n  year: now.getFullYear(),\n  pipeline_run_id: `run-${Date.now()}`\n} }];"
+      },
+      "id": "baa05d02-0f68-4bfa-b284-217c704a5c19",
+      "name": "Build Search Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        100
+      ],
+      "notes": "STEP 2: Define search queries by AI signal category with weights."
+    },
+    {
+      "parameters": {
+        "jsCode": "const { queries, pipeline_date, start_date, end_date, week_number, year, pipeline_run_id } = $input.first().json;\nconst exaKey = $vars.EXA_API_KEY;\nif (!exaKey) throw new Error('EXA_API_KEY workflow variable not set');\n\nconst results = await Promise.allSettled(\n  queries.map(async (q) => {\n    const body = {\n      query: q.query,\n      type: q.weight >= 78 ? 'auto' : 'auto',\n      numResults: 20,\n      startPublishedDate: start_date,\n      endPublishedDate: end_date,\n      contents: {\n        text: { maxCharacters: 3000 },\n        highlights: { maxCharacters: 1000 }\n      },\n      ...(q.searchCategory ? { category: q.searchCategory } : {}),\n      ...(q.include_domains ? { includeDomains: q.include_domains } : {}),\n      ...(q.exclude_domains ? { excludeDomains: q.exclude_domains } : {})\n    };\n\n    const res = await this.helpers.httpRequest({\n      method: 'POST',\n      url: 'https://api.exa.ai/search',\n      headers: {\n        'Content-Type': 'application/json',\n        'x-api-key': exaKey\n      },\n      body: JSON.stringify(body)\n    });\n\n    // Map Exa response to match downstream pipeline format\n    const mapped = (res.results || []).map(r => ({\n      url: r.url,\n      title: r.title,\n      content: r.text || (r.highlights || []).join(' '),\n      published_date: r.publishedDate || null,\n      score: r.score || null\n    }));\n\n    return { ...q, results: mapped };\n  })\n);\n\nconst fetched = results.filter(r => r.status === 'fulfilled').map(r => r.value);\nconst failed  = results.filter(r => r.status === 'rejected');\nconst total   = fetched.reduce((s, f) => s + f.results.length, 0);\n\n// Detailed logging for debugging\nfailed.forEach((r, i) => console.log(`Exa FAILED query ${i}: ${r.reason?.message || JSON.stringify(r.reason)}`));\nfetched.forEach(f => console.log(`Exa OK [${f.category}]: ${f.results.length} results`));\nif (fetched.length > 0 && fetched[0].results.length > 0) {\n  const sample = fetched[0].results[0];\n  console.log('Exa sample result:', JSON.stringify({ url: sample.url, title: sample.title, published_date: sample.published_date }));\n}\nconsole.log(`Exa SUMMARY: ${fetched.length}/${queries.length} queries succeeded | ${total} raw results | ${failed.length} failed`);\n\nreturn [{ json: { fetched, pipeline_date, week_number, year, pipeline_run_id } }];"
+      },
+      "id": "adfc3973-cc9c-4b5b-b4d1-2120f2edbd7a",
+      "name": "Fetch via Exa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        20
+      ],
+      "notes": "STEP 3: Parallel Tavily search. Failed queries are skipped \u2014 pipeline continues."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parallel fetch branches: combine fetched arrays from Exa and GitHub Trending\nconst allItems = $input.all();\nconst { pipeline_date, week_number, year, pipeline_run_id } = allItems[0].json;\nconst fetched = allItems.flatMap(item => item.json.fetched || []);\n\nconst seenUrls   = new Set();\nconst seenTitles = new Set();\nconst signals    = [];\n\nfor (const source of fetched) {\n  const { category, weight = 50, results = [] } = source;\n  for (const r of results) {\n    if (!r.title || !r.url) continue;\n    // Skip github.com URLs from Exa \u2014 GitHub Trending node handles these exclusively\n    if (category !== 'github' && r.url.includes('github.com')) continue;\n    // Skip non-AI-infrastructure domains that leak through Exa queries\n    const NON_AI_DOMAINS = ['substack.com', 'medium.com/@', 'regensports', 'threads.com'];\n    const NON_AI_TITLES = /\b(video generation|video editing|image editing|photo editing|game bot|personal assistant|recipe|fitness|sports betting|fantasy sports)\b/i;\n    if (NON_AI_TITLES.test(r.title || '')) continue;\n    const normTitle = r.title.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 60);\n    if (seenUrls.has(r.url) || seenTitles.has(normTitle)) continue;\n    seenUrls.add(r.url);\n    seenTitles.add(normTitle);\n    const relevance_score = Math.min(98, Math.round((r.score || 0.5) * weight));\n    let hostname = category;\n    try { hostname = new URL(r.url).hostname.replace('www.', ''); } catch (_) {}\n    signals.push({\n      signal_id:    `tv-${Buffer.from(r.url).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 32)}`,\n      source_type:  category,\n      source_name:  hostname,\n      source_url:   r.url,\n      title:        r.title.substring(0, 200),\n      description:  (r.content || '').substring(0, 250),\n      relevance_score,\n      published_at: r.published_date || null,\n      ingested_at:  new Date().toISOString()\n    });\n  }\n}\n\nconsole.log(`Process Signals: ${signals.length} unique from ~${fetched.reduce((s,f) => s + f.results.length, 0)} raw`);\nreturn [{ json: { signals, total_unique: signals.length, pipeline_date, week_number, year, pipeline_run_id } }];"
+      },
+      "id": "26c596fc-2242-4408-8e83-c85faf844191",
+      "name": "Process Signals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        100
+      ],
+      "notes": "STEP 4: Combines fetched arrays from both parallel branches (Tavily + GitHub). Normalize + deduplicate in one pass."
+    },
+    {
+      "parameters": {
+        "jsCode": "const { signals, total_unique, pipeline_date, week_number, year, pipeline_run_id } = $input.first().json;\n\nconst MULT = {\n  vendor: 1.4, vendor_platform: 1.35, github: 1.3, papers: 1.25,\n  safety: 1.2, safety_trend: 1.2,\n  agents: 1.15, agents_trend: 1.15,\n  newsletter: 1.1, newsletter_media: 1.1, newsletter_substack: 1.1,\n  enterprise: 1.1, enterprise_trend: 1.1,\n  research: 1.05,\n  infra: 1.0, infra_trend: 1.0,\n  engineering: 0.95, engineering_trend: 0.95,\n  opensource: 0.9, oss_trend: 0.9,\n  business: 0.85, business_trend: 0.85\n};\n\n// Score all signals\nconst scored = signals\n  .map(s => ({ ...s, final_score: Math.round((s.relevance_score || 50) * (MULT[s.source_type] || 1.0)) }))\n  .sort((a, b) => b.final_score - a.final_score);\n\n// Per-category caps: vendor signals capped lower to prevent crowding out thematic signals\n// Ecosystem signals (github, papers, agents, safety) get higher caps to ensure theme diversity\nconst CAT_CAPS = {\n  vendor: 5, vendor_platform: 5,\n  papers: 12, github: 12,\n  agents: 10, agents_trend: 10,\n  safety: 8, safety_trend: 8,\n  newsletter: 8, newsletter_media: 8, newsletter_substack: 8,\n  enterprise: 8, enterprise_trend: 8,\n  research: 8,\n  infra: 8, infra_trend: 8,\n  engineering: 6, engineering_trend: 6,\n  opensource: 6, oss_trend: 6,\n  business: 4, business_trend: 4,\n};\nconst DEFAULT_CAP = 8;\n\nconst catCounts = {};\nconst diverse = [];\nconst overflow = [];\nfor (const s of scored) {\n  const cat = s.source_type || 'unknown';\n  catCounts[cat] = (catCounts[cat] || 0) + 1;\n  const cap = CAT_CAPS[cat] ?? DEFAULT_CAP;\n  if (catCounts[cat] <= cap) diverse.push(s);\n  else overflow.push(s);\n}\nconst top25 = [...diverse, ...overflow].slice(0, 120);\n\nconst source_breakdown = top25.reduce((acc, s) => {\n  acc[s.source_type] = (acc[s.source_type] || 0) + 1;\n  return acc;\n}, {});\n\nconst signal_cards = top25\n  .map(s => { const pubDate = s.published_at ? s.published_at.substring(0, 10) : 'unknown'; return `[${s.signal_id}] [${s.source_type.toUpperCase()}:${s.source_name}] ${s.title} | ${(s.description || '').substring(0, 100).replace(/\\n/g, ' ')} (score:${s.final_score}) (pub:${pubDate})`; })\n  .join('\\n');\n\nconsole.log(`Rank & Format: ${signals.length} \u2192 top 120 | ${JSON.stringify(source_breakdown)}`);\nreturn [{ json: { signal_cards, top_signals: top25, total_ingested: total_unique, top_n: 120, source_breakdown, pipeline_date, week_number, year, pipeline_run_id } }];"
+      },
+      "id": "31f2f3fe-a16f-4ad7-a9f5-07af6cc6d0e0",
+      "name": "Rank & Format Top 120",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        100
+      ],
+      "notes": "STEP 5: Re-rank using category weight multipliers, keep top 120 signals, format compact signal cards for evidence pack. Also passes top_signals array for citation URL resolution."
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst { week_number, year } = data;\nconst prior_week = week_number > 1 ? week_number - 1 : 52;\nconst prior_year = week_number > 1 ? year : year - 1;\nlet priorThemes = [];\n\ntry {\n  const url = $vars.SUPABASE_URL;\n  const key = $vars.SUPABASE_KEY;\n  if (url && key) {\n    const result = await this.helpers.httpRequest({\n      method: 'GET',\n      url: `${url}/rest/v1/themes?week_number=eq.${prior_week}&year=eq.${prior_year}&select=theme_id,title,signal_type,confidence_score&limit=10&order=confidence_score.desc`,\n      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }\n    });\n    priorThemes = Array.isArray(result) ? result : [];\n    console.log(`Prior context: ${priorThemes.length} themes from week ${prior_week}/${prior_year}`);\n  }\n} catch (e) {\n  console.log('No prior context (first run or Supabase unavailable):', e.message);\n}\n\nreturn [{ json: { ...data, prior_themes: priorThemes, prior_week } }];"
+      },
+      "id": "cf442b0a-7748-4e5e-9342-39cf189e496b",
+      "name": "Retrieve Prior Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        100
+      ],
+      "notes": "STEP 6: Fetch last week's themes from Supabase for velocity detection.\nFails gracefully on first run \u2014 pipeline continues with empty prior context."
+    },
+    {
+      "parameters": {
+        "jsCode": "const { signal_cards, top_signals, total_ingested, top_n, source_breakdown, prior_themes, prior_week, pipeline_date, week_number, year, pipeline_run_id } = $input.first().json;\n\nconst priorContext = prior_themes.length > 0\n  ? `PRIOR WEEK (Week ${prior_week}) \u2014 reference only for continuations/escalations:\\n` +\n    prior_themes.map(t => `  - [${t.signal_type}] ${t.title} (confidence: ${t.confidence_score})`).join('\\n')\n  : 'PRIOR CONTEXT: None (first run)';\n\nreturn [{ json: {\n  week:             `Week ${week_number}/${year} (${pipeline_date})`,\n  ingestion_stats:  `${total_ingested} unique signals \u2192 top ${top_n} after ranking`,\n  source_breakdown: JSON.stringify(source_breakdown),\n  prior_context:    priorContext,\n  signal_cards,\n  top_signals,\n  prior_themes,\n  week_number, year, pipeline_run_id, total_ingested, top_n, source_breakdown\n} }];"
+      },
+      "id": "27a86514-e294-4285-bef7-3191da820728",
+      "name": "Build Evidence Pack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        100
+      ],
+      "notes": "STEP 7: Assemble prompt payload for Main Analysis Agent.\nPasses top_signals through so citation URLs survive to Supabase."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=SIGNAL CARDS (ground truth \u2014 only IDs listed here are valid):\n{{ $('Build Evidence Pack').first().json.signal_cards }}\n\nTHEMES TO VERIFY:\n{{ $json.output }}\n\nVerify every theme against all rules. Return corrected JSON:\n{\n  \"themes\": [\n    {\n      \"theme_id\": \"theme-001\",\n      \"title\": \"...\",\n      \"summary\": \"...\",\n      \"signal_type\": \"ACT or WATCH\",\n      \"confidence_score\": 78,\n      \"why_it_matters\": \"...\",\n      \"what_you_can_do\": \"...\",\n      \"supporting_signal_ids\": [\"only-ids-that-exist-in-signal-cards\"]\n    }\n  ]\n}",
+        "options": {
+          "systemMessage": "<Role>\nYou are a quality-control verifier for CalmFalcon's AI signal intelligence output. CalmFalcon serves AI Platform PMs and Engineering Leads who make real infrastructure and vendor decisions based on this data. A single wrong citation, hallucinated date, or inflated confidence score can cost a reader their credibility with their leadership team.\n\nYour job is to apply 12 rules silently and return corrected JSON. You do not explain your changes. You do not add commentary. You correct and return.\n</Role>\n\n<Instruction>\nYou will receive a list of themes and the ground-truth signal cards used to generate them. Your goal is to return a corrected version of the themes JSON \u2014 fixing what can be fixed, removing only what must be removed, and preserving everything else. Complete all steps silently \u2014 return only the corrected JSON, no explanations.\n</Instruction>\n\n<Task>\nFor each theme, reason through this chain BEFORE writing any output:\nStep A \u2014 ID check: Read each signal ID in supporting_signal_ids. Find it in the signal cards. Does it exist verbatim? Mark each as valid or invalid.\nStep B \u2014 Count valid IDs. If count is 0 \u2192 Rule 2 removes the theme. If count \u22651 \u2192 continue to rules.\nStep C \u2014 Quality checks: Apply Rules 3\u201312 to the surviving theme in order. After all themes are processed, apply these 4 corrections to your full output before Step D:\n  C1 \u2014 TITLE FIX: Read every theme title. If it contains \"Enhances\", \"Enhancing\", \"Expanding\", \"Exploring\", \"Evolving\", \"Driving\", \"Shaping\", \"Transforming\", \"Advancing\", \"Advancements in\", \"Rise of\", \"Evolution of\", \"Future of\", \"Landscape\", \"Era of\", \"Surge in\" \u2192 rewrite it now using [Vendor] + [action verb] + [specific product]. Apply to every theme before moving to Step D.\n  C2 \u2014 SPREAD FIX: Calculate max(confidence_score) - min(confidence_score). If < 20 \u2192 rank themes by signal_count, add 5pts to top 2, subtract 5pts from bottom 2 (cap 95, floor 45). Repeat with +8/-8 if still < 20. Apply corrected scores before Step D.\n  C3 \u2014 ACT FIX: If all themes are WATCH \u2192 check each for: (a) \u22652 signal_ids AND (b) at least one signal card hostname matches investor.*, newsroom.*, press.* \u2192 if both true AND title names a specific product \u2192 upgrade to ACT, confidence=75. Apply before Step D.\n  C4 \u2014 PHRASE FIX: Scan every what_you_can_do for \"monitor\", \"watch\", \"stay informed\", \"stay updated\", \"consider exploring\", \"keep an eye\", \"follow developments\". If found \u2192 rewrite: [specific vendor/tool] + [specific action] + [measurable outcome achievable in 5 days]. Apply before Step D.\nStep D \u2014 Output: Return the corrected JSON with all surviving themes. Output ONLY the JSON \u2014 no explanations, no checklist, no commentary.\n\nApply the following 12 rules in order:\n\nRULE 1 \u2014 SIGNAL ID VALIDATION (hard rule, no exceptions):\n- Every ID in supporting_signal_ids must appear verbatim in the signal cards provided\n- Strip any ID that does not appear \u2014 hallucinated IDs are a trust-breaking error\n\nRULE 2 \u2014 MINIMUM EVIDENCE THRESHOLD:\n- Remove a theme ONLY if it has 0 verified signal IDs after Rule 1 stripping. This is the ONLY reason to remove a theme.\n- NEVER remove a theme that has \u22651 valid signal ID \u2014 instead downgrade its confidence_score to 55 and set signal_type to WATCH.\n- CRITICAL: You MUST return ALL themes that have \u22651 valid signal ID. Do not reduce the theme count for any other reason. If the Main Agent produced 6 themes and 5 have \u22651 valid signal, you must return 5 themes.\n- Preferred credible sources (keep at original confidence): official vendor domain, GitHub repository (github.com), academic paper (arxiv.org), established AI newsletter, reputable tech publication (venturebeat.com, techcrunch.com, bloomberg.com, reuters.com, wired.com)\n- Single signal from non-credible source: keep the theme, set confidence_score to 55, set signal_type to WATCH. Signals from credible sources are valid evidence.\n\nRULE 3 \u2014 SIGNAL TIER ACCURACY:\n- PRESERVE ACT if the theme has \u22652 signal IDs from official vendor domains (openai.com, anthropic.com, google.com, meta.com, microsoft.com, nvidia.com, investor.nvidia.com, mistral.ai, huggingface.co, aws.amazon.com, cloud.google.com, azure.microsoft.com) AND the signal titles describe a specific named release or announcement this week. The Theme Writer applied D-1 to reach ACT \u2014 do not override it when the vendor evidence is present.\n- DOWNGRADE ACT \u2192 WATCH only if: (a) fewer than 2 valid signal IDs remain after Rule 1, OR (b) none of the remaining signals come from an official vendor domain, OR (c) no signal title describes a specific named event (e.g. all signals are general overview pages).\n- WATCH: appropriate for 1\u20132 credible signals, ongoing trends, or non-vendor sources. Do not upgrade WATCH \u2192 ACT unless \u22652 vendor domain signals with specific named releases are present.\n- When in doubt, preserve the Theme Writer's tier \u2014 downgrade only when clear evidence for it is absent.\n\nRULE 4 \u2014 CONFIDENCE SCORE CALIBRATION:\n- Score must reflect evidence quality, not topic importance or novelty\n- A fascinating topic with weak sourcing must score below 55\n- A routine topic with 5 corroborating major sources should score above 75\n- Adjust if score seems inflated or deflated relative to the signal cards\n- SCORE BANDS (align to Theme Writer's calibration table):\n  * \u22653 vendor domain signals, specific named release, all this week \u2192 85\u201395%\n  * 2 credible independent sources, specific named event this week \u2192 75\u201384%\n  * 1\u20132 credible sources, specific event identifiable \u2192 65\u201374%\n  * Single credible source or general trend \u2192 55\u201364%\n  * Weak evidence only \u2192 below 55%\n- HARD CAPS:\n  * Single signal from social media, YouTube, or non-official blog \u2192 max 50%\n  * ACT tier with 0 vendor domain signals \u2192 downgrade to WATCH and cap at 64%\n  * CRITICAL: Do NOT collapse all themes to the same score. If you see all themes at 62%, recalibrate \u2014 the spread across 8 themes must be at least 20 points.\n- SPREAD ENFORCEMENT \u2014 mandatory final check before output: After scoring all themes, calculate: max(confidence_score) - min(confidence_score). If this value is <20 \u2192 you MUST recalibrate using this formula:\n  1. Rank all themes by signal count (descending). TIEBREAKER for equal signal counts: rank by source credibility \u2014 official vendor domain > arxiv/research paper > GitHub > other. A theme with 2 vendor signals ranks above a theme with 2 GitHub-only signals.\n  2. Top 2 by signal count (after tiebreak) \u2192 add 5 pts each (hard cap: 95).\n  3. Bottom 2 by signal count \u2192 subtract 5 pts each (hard floor: 45).\n  4. Recompute spread. If still <20, repeat step 2-3 once more with +8/-8.\n  5. The output MUST show a minimum 20-point spread. A brief where every theme scores 60\u201362% has failed this rule regardless of evidence quality.\n  CALCULATION REFERENCE (apply internally \u2014 do NOT output this reasoning):\n  Example input: scores=[52,52,52,52,52,50,50,50], signal_counts=[3,3,3,3,2,1,1,1]\n  \u2192 spread=2 (<20) \u2192 Round 1: top 2 by count +5 \u2192 57,57. bottom 2 -5 \u2192 45,45.\n  \u2192 spread=12 (<20) \u2192 Round 2: top 2 +8 \u2192 65,65. bottom 2 -8 \u2192 37, but floor=45.\n  \u2192 spread=20 (\u226520) \u2705 \u2192 output scores [65,65,52,52,52,45,45,50] in the themes JSON.\n  Apply this correction internally. The output JSON must reflect the corrected scores \u2014 do not output the calculation steps.\n\nRULE 5 \u2014 ENTERPRISE RELEVANCE:\n- Every theme must be relevant to AI Platform PMs or Engineering Leads managing inference, orchestration, or AI infrastructure\n- Remove themes that are purely consumer AI features, general tech news, or have no infrastructure/platform implications\n\nRULE 6 \u2014 ACTIONABILITY OF what_you_can_do:\n- Must contain 2-3 specific, concrete steps achievable within 5 business days\n- Rewrite any what_you_can_do containing: 'monitor', 'watch', 'stay informed', 'keep an eye', 'follow developments', 'track this', 'consider exploring', 'it may be worth', 'you might want to', 'think about', 'look into', 'be aware of'\n- Rewrite formula: [specific tool or vendor] + [specific action verb] + [measurable outcome]\n- Expand to 2-3 steps if only 1 step is present\n\nRULE 7 \u2014 TITLE AND SUMMARY QUALITY:\n- Title must be \u22648 words and name the specific event \u2014 not a generic category\n- Summary must be 4-5 sentences (80-120 words) covering: what changed, why now, scale/evidence with numbers, technical detail, ecosystem impact, risk/open question. HARD LIMIT: 5 sentences maximum.\n- Expand if under 3 sentences using evidence from the signal cards. Trim if over 5 sentences.\n- BANNED TITLE PATTERNS \u2014 MANDATORY SCAN: Before outputting ANY theme, check if its title contains ANY of the following as a substring (not just the first word \u2014 scan the ENTIRE title string):\n  Phrases: \"Advancements in\", \"Enhancements in\", \"Rise of\", \"Evolution of\", \"Future of\", \"Landscape\", \"Era of\", \"Surge in\"\n  Verbs: \"Enhances\", \"Enhancing\", \"Expanding\", \"Exploring\", \"Evolving\", \"Driving\", \"Shaping\", \"Transforming\", \"Advancing\"\n  EXAMPLES OF SUBSTRING MATCHES THAT MUST BE CAUGHT:\n  \u2717 \"Hugging Face Transformers Update Enhances ML Models\" \u2192 contains \"Enhances\" \u2192 MUST rewrite\n  \u2717 \"LlamaFactory Enhances LLM & VLM Fine-Tuning\" \u2192 contains \"Enhances\" \u2192 MUST rewrite\n  \u2717 \"RAGFlow Enhances Agent Capabilities\" \u2192 contains \"Enhances\" \u2192 MUST rewrite\n  If ANY title contains one of these \u2192 rewrite it using the most specific product name or named event from the supporting signal cards.\n  Formula: [Vendor/Tool name] + [specific action verb] + [specific outcome or feature].\n  \u2717 \"Enhancements in Enterprise MLOps\" \u2192 \u2713 \"Domino Data Lab Extends NVIDIA Fleet Command Integration\"\n  \u2717 \"RAGFlow Enhances LLM Context Layers\" \u2192 \u2713 \"RAGFlow Adds Agent Capabilities to Open-Source RAG Engine\"\n  \u2717 \"Expanding AI Agent Frameworks\" \u2192 \u2713 \"Witness AI Publishes AI Agent Framework Architecture Guide\"\n  \u2717 \"Hugging Face Transformers Update Enhances ML Models\" \u2192 \u2713 \"Hugging Face Releases Transformers v4.40 with Multi-Format Support\"\n\nRULE 8 \u2014 PRESERVE STRUCTURE:\n- Keep all theme_ids unchanged\n- Do not add new themes \u2014 only validate, correct, or remove\n- Return all fields for every theme that passes validation\n\nRULE 9 \u2014 SIGNAL TIER DIVERSITY:\n- The brief must contain BOTH ACT and WATCH themes\n- If all themes are ACT: downgrade the lowest-confidence theme(s) to WATCH \u2014 apply Rule 3 criteria\n- If all themes are WATCH: FOR EACH WATCH THEME check all three conditions internally:\n  CHECK A \u2014 Does the theme have \u22652 signal_ids in supporting_signal_ids? If no \u2192 cannot upgrade, skip.\n  CHECK B \u2014 Does at least one of those signal cards have a hostname matching investor.*, newsroom.*, press.*, or *.com/press-releases/*? If no \u2192 cannot upgrade, skip.\n  CHECK C \u2014 Does the theme title name a specific product or release (not a generic category)? If no \u2192 cannot upgrade, skip.\n  If a theme passes all three checks \u2192 upgrade to signal_type=ACT, confidence_score=75.\n  EXAMPLE (internal reasoning only \u2014 do not output): NVIDIA theme has investor.nvidia.com signal (count=3 \u2265 2 \u2705, investor.* domain \u2705, \"NVIDIA Launches Physical AI Models\" is specific \u2705) \u2192 upgrade to ACT.\n  If no theme passes all three checks \u2192 leave all as WATCH. Never upgrade a single-signal theme to ACT.\n- Rule 9 does NOT override Rule 3 \u2014 never upgrade to ACT if vendor domain evidence is absent\n\nRULE 10 \u2014 SIGNAL-THEME TOPICAL COHERENCE (strict \u2014 this rule causes the most false passes):\n- Retain a signal only when its title is primarily about the theme topic. \"Adjacent to AI\" is not sufficient \u2014 the signal must be directly on-topic.\n- For each signal, read its title and hostname from the signal cards. Confirm: \"This signal is specifically about [theme topic].\" If you cannot confirm, move the signal out of this theme.\n- Retain the signal when the subject directly matches. Use these pattern guides:\n  * Fine-tuning / quantization tools (Unsloth, LoRA, PEFT, QLoRA, bitsandbytes) \u2192 retain only for fine-tuning or training themes\n  * Deprecation notices \u2192 retain only for themes about feature removal or sunset timelines\n  * Benchmark methodology signals \u2192 retain only for evaluation or benchmarking themes\n  * Hardware signals (chips, GPUs, Apple silicon, NVIDIA hardware) \u2192 retain only for compute or hardware themes\n  * Consumer product launches \u2192 retain only for themes explicitly about consumer AI adoption\n  * Governance / policy signals \u2192 retain only for compliance, regulation, or AI safety themes\n- When a signal does not belong in this theme, reassign it to the correct theme if one exists, or exclude it from all themes\n- SIGNAL PRESERVATION FALLBACK: If applying the keyword check below would leave 0 signals for a theme, keep the single most topically-adjacent signal (most noun-phrase word overlap) and set confidence_score to 55, signal_type to WATCH. Never reduce a theme to 0 signals via Rule 10 alone.\n- SIGNAL RELEVANCE CHECK: For each signal in supporting_signal_ids, ask ONE question: \"Is this signal about a completely different company, product, or topic than this theme?\" \n  * If clearly different (e.g. an Apple earnings signal in an NVIDIA theme, a sports article in an AI theme) \u2192 remove it\n  * If related, adjacent, or uncertain \u2192 KEEP it. Do not remove signals based on partial relevance.\n  * If removing signals would leave 0 for this theme \u2192 keep ALL signals and apply the SIGNAL PRESERVATION FALLBACK above. Do not reduce any theme to 0 signals via this rule.\n\nRULE 11 \u2014 NO HALLUCINATED DATES:\n- Summaries must not contain any specific future dates (e.g., 'April 17, 2026', 'next Thursday', 'by March 31') unless that exact date appears verbatim in at least one of the theme's supporting signal cards\n- To verify: scan the signal card titles and descriptions for the date. If not present in any signal card, remove the date from the summary. Replace with a relative reference ('in the coming weeks', 'next month') or remove the sentence if the date is the only content\n- This is a trust-breaking error \u2014 a specific date that cannot be sourced to a signal will be flagged as hallucination by enterprise users\n- Also flag and remove future dates that are impossible given the current pipeline run date\n\nRULE 12 \u2014 CROSS-THEME SIGNAL DEDUPLICATION:\n- After applying Rules 1\u201311, scan all output themes for duplicate signal_ids (the same ID appearing in 2+ themes).\n- For each duplicate: keep the signal_id only in the theme where its title has the highest noun-phrase overlap with the theme title. Remove it from all other themes.\n- After removing a duplicate, if the affected theme drops to 0 valid signal IDs \u2192 apply Rule 2 (downgrade to WATCH@55, do not remove the theme).\n- Never output the same signal_id in more than one theme.\n\n\n</Task>\n\n<Guardrails>\n1. Make corrections silently \u2014 do not explain changes or add commentary\n2. Do not add new themes \u2014 only validate, correct, or remove existing ones\n3. Do not invent signal IDs, dates, statistics, or URLs not present in the signal cards\n4. Preserve all theme_id values exactly as received\n5. Return ONLY valid JSON \u2014 no markdown fences, no trailing text\n6. When you are uncertain whether a signal is topically coherent (Rule 10), apply the noun-phrase test: does the signal title contain at least one of the 2-3 noun-phrase words from the theme title (after stopword removal)? If yes \u2192 retain. If no \u2192 remove the signal but keep the theme if \u22652 others remain. Do NOT retain a signal solely because it is \"in the same general AI space\" as the theme.\n7. Apply rules in order \u2014 complete each rule for all themes before moving to the next rule\n7a. WHEN SIGNAL CARDS ARE AMBIGUOUS: If a signal card title is short or generic (e.g. \"AI Weekly Roundup\"), apply the most lenient topical interpretation \u2014 retain the signal unless it clearly contradicts the theme. Err toward keeping signals and themes over removing them.\n8. Before returning an empty themes array, verify: the ONLY valid reason to return {\"themes\": []} is if every single theme has 0 valid signal IDs after Rule 1 stripping (Rule 2). If any theme has \u22651 valid signal ID, it must appear in the output \u2014 downgraded to WATCH at 55% if needed. If you are about to return {\"themes\": []}, re-read Rule 2 and confirm each theme truly has 0 valid IDs.\n</Guardrails>\n\n<Example>\n--- EXAMPLE A: Theme that gets CORRECTED (most common case) ---\n\nInput theme:\n{\n  \"theme_id\": \"theme-003\",\n  \"title\": \"Advancements in Enterprise MLOps\",\n  \"signal_type\": \"ACT\",\n  \"confidence_score\": 81,\n  \"summary\": \"Enterprise MLOps is advancing rapidly this week with new integrations...\",\n  \"what_you_can_do\": \"Monitor this space for updates and consider exploring options.\",\n  \"supporting_signal_ids\": [\"tv-abc111\", \"tv-def222\", \"tv-ghi333\"]\n}\n\nSignal cards:\n[tv-abc111] [VENDOR:investor.nvidia.com] NVIDIA Fleet Command Integration with Enterprise MLOps Partners (score:88) (pub:unknown)\n[tv-def222] [VENDOR:domino.ai] Domino Data Lab Extends NVIDIA Fleet Command Integration (score:84) (pub:unknown)\n[tv-ghi333] [GITHUB:github.com] unslothai/unsloth \u2014 fine-tuning efficiency tool (score:72) (pub:2026-03-27)\n\nStep A: tv-abc111 \u2705 found | tv-def222 \u2705 found | tv-ghi333 \u2705 found\nStep B: 3 valid IDs \u2192 continue\nRule 1: all 3 IDs valid \u2705\nRule 2: 3 valid IDs \u2192 preserve theme \u2705\nRule 3: tv-abc111 (investor.nvidia.com = vendor domain) + tv-def222 (domino.ai = enterprise, not vendor) \u2192 only 1 official vendor domain signal \u2192 ACT not justified \u2192 downgrade to WATCH\nRule 4: 2 credible signals after removing off-topic \u2192 65\u201374% band \u2192 set confidence to 69\nRule 6: \"Monitor this space\" and \"consider exploring\" are banned \u2192 rewrite: \"1. Pull Domino Data Lab's Fleet Command integration docs and map against your current MLOps stack. 2. Request a scoping call with NVIDIA's enterprise team this week.\"\nRule 7: \"Advancements in\" is banned \u2192 rewrite title: \"Domino Data Lab Extends NVIDIA Fleet Command Integration\"\nRule 10: tv-ghi333 (Unsloth fine-tuning tool) \u2260 MLOps integrations topic \u2192 remove signal ID\nRule 12: no duplicate signal_ids across other themes \u2705\n\nOutput:\n{\n  \"theme_id\": \"theme-003\",\n  \"title\": \"Domino Data Lab Extends NVIDIA Fleet Command Integration\",\n  \"signal_type\": \"WATCH\",\n  \"confidence_score\": 69,\n  \"what_you_can_do\": \"1. Pull Domino Data Lab's Fleet Command integration docs and map against your current MLOps stack. 2. Request a scoping call with NVIDIA's enterprise team this week.\",\n  \"supporting_signal_ids\": [\"tv-abc111\", \"tv-def222\"]\n}\n\n--- EXAMPLE B: Theme that gets REMOVED (only when 0 valid signals remain) ---\n\nInput theme:\n{\n  \"theme_id\": \"theme-002\",\n  \"title\": \"RAGFlow Accelerates RAG and Agent Capabilities\",\n  \"signal_type\": \"ACT\",\n  \"confidence_score\": 81,\n  \"supporting_signal_ids\": [\"tv-aHR0cHM6Ly9naXRodW\"]\n}\n\nSignal card: [tv-aHR0cHM6Ly9naXRodW] [GITHUB:github.com] unslothai/unsloth \u2014 Unsloth Studio, a fine-tuning efficiency tool (score:72)\n\nRule 10: Signal is about Unsloth (fine-tuning). Theme is about RAGFlow (RAG engine). Remove signal ID.\nRule 2: 0 remaining signal IDs \u2192 remove theme entirely.\n\nOutput: theme-002 omitted from output JSON.\n</Example>"
+        }
+      },
+      "id": "15737b31-7a22-4168-a4f5-3a5c7222ecd9",
+      "name": "Verifier Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        2880,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "notes": "STEP 9: 11-rule QC pass \u2014 validates signal IDs, evidence thresholds,\nsignal type accuracy, confidence calibration, enterprise relevance,\nactionability, title/summary quality, topical coherence (R10), hallucinated dates (R11). Temperature 0.1 for strict checking."
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo",
+        "options": {
+          "maxTokens": 8000,
+          "temperature": 0.1
+        }
+      },
+      "id": "24c28604-2c58-446f-9bf2-1f2517caa5cb",
+      "name": "Verifier Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        2940,
+        320
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ud6lfu4FVZ8L1pYz",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputJson = $input.first().json;\nconsole.log('DS input keys:', Object.keys(inputJson).join(', '));\n\n// STEP 0: extract raw text from whatever Verifier Agent emitted\n// LangChain agent nodes set json.output = text response.\n// Fallback: json.response may be the full LangChain wrapper {generations:[[{text:...}]]}\nlet rawText = inputJson.output || inputJson.text || null;\n\nif (!rawText && inputJson.response) {\n  try {\n    const gen = inputJson.response && inputJson.response.generations;\n    if (Array.isArray(gen) && gen[0] && gen[0][0] && gen[0][0].text) rawText = gen[0][0].text;\n  } catch(e) {}\n}\nif (!rawText && typeof inputJson.response === 'string') rawText = inputJson.response;\n\nconsole.log('DS rawText type:', typeof rawText, '| length:', String(rawText || '').length, '| preview:', String(rawText || '').substring(0, 300));\n\nconst aiOutput = typeof rawText === 'string' ? rawText : rawText ? JSON.stringify(rawText) : '{}';\n\nlet parsed = { themes: [] };\n\n// STRATEGY 1: parse full output directly (happy path \u2014 clean JSON)\ntry {\n  const stripped = aiOutput.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```\\s*$/, '').trim();\n  const candidate = JSON.parse(stripped);\n  if (Array.isArray(candidate.themes) && candidate.themes.length) parsed = candidate;\n  else if (Array.isArray(candidate) && candidate[0] && candidate[0].theme_id) parsed = { themes: candidate };\n} catch(e) {}\n\n// STRATEGY 2: brace-depth sweep from {\"themes\": position\nif (!parsed.themes.length) {\n  try {\n    const tidx = aiOutput.indexOf('\"themes\"');\n    if (tidx > 0) {\n      const open = aiOutput.lastIndexOf('{', tidx);\n      if (open !== -1) {\n        let d = 0, end = -1;\n        for (let i = open; i < aiOutput.length; i++) {\n          if (aiOutput[i] === '{') d++;\n          else if (aiOutput[i] === '}') { d--; if (d === 0) { end = i; break; } }\n        }\n        if (end !== -1) {\n          const candidate = JSON.parse(aiOutput.substring(open, end + 1));\n          if (Array.isArray(candidate.themes) && candidate.themes.length) parsed = candidate;\n        }\n      }\n    }\n  } catch(e) {}\n}\n\n// STRATEGY 3: scan for every \"theme_id\" occurrence, extract surrounding complete object\n// Handles truncated JSON \u2014 recovers all complete themes even if outer wrapper is cut off\nif (!parsed.themes.length) {\n  try {\n    const themeObjects = [];\n    let searchFrom = 0;\n    while (searchFrom < aiOutput.length) {\n      const tidx = aiOutput.indexOf('\"theme_id\"', searchFrom);\n      if (tidx === -1) break;\n      const open = aiOutput.lastIndexOf('{', tidx);\n      if (open === -1) { searchFrom = tidx + 1; continue; }\n      let d = 0, end = -1;\n      for (let i = open; i < aiOutput.length; i++) {\n        if (aiOutput[i] === '{') d++;\n        else if (aiOutput[i] === '}') { d--; if (d === 0) { end = i; break; } }\n      }\n      if (end !== -1) {\n        try {\n          const obj = JSON.parse(aiOutput.substring(open, end + 1));\n          if (obj.theme_id || obj.title) { themeObjects.push(obj); searchFrom = end + 1; }\n          else searchFrom = tidx + 1;\n        } catch(e2) { searchFrom = tidx + 1; }\n      } else {\n        console.log('DS S3: truncated theme at offset', open, '\u2014 recovered', themeObjects.length, 'themes before cut');\n        break;\n      }\n    }\n    if (themeObjects.length) {\n      parsed = { themes: themeObjects };\n      console.log('DS S3 recovered', themeObjects.length, 'individual theme objects');\n    }\n  } catch(e) {}\n}\n\nif (!parsed.themes.length) {\n  console.error('DS FAIL: all strategies failed. rawText preview:', String(rawText || '').substring(0, 800));\n} else {\n  console.log('DS SUCCESS: parsed', parsed.themes.length, 'themes');\n}\n\nconst { week_number, year, pipeline_run_id, total_ingested, top_n, source_breakdown, top_signals } = $('Build Evidence Pack').first().json;\n\nconst signalMap = {};\n(top_signals || []).forEach(s => { signalMap[s.signal_id] = s; });\n\nconst priorThemes = $('Build Evidence Pack').first().json.prior_themes || [];\nconst meaningful = w => w.length > 3;\nconst titleWords = title => (title || '').toLowerCase().split(/\\W+/).filter(meaningful);\nconst findPrior = title => {\n  const words = new Set(titleWords(title));\n  return priorThemes.find(p => titleWords(p.title).filter(w => words.has(w)).length >= 2) || null;\n};\n\nconst VELOCITY_DELTA = { ACT: 8, WATCH: -5 };\nconst baseTime = Date.now();\n\nconst themes = (parsed.themes || []).map((theme, idx) => {\n  let score = theme.confidence_score || 50;\n  const sigIds = [...new Set(theme.supporting_signal_ids || [])];\n  const types  = new Set(sigIds.map(id => id.split('-')[0]));\n  if (types.size >= 3) score += 12;\n  else if (types.size >= 2) score += 6;\n  if (sigIds.length >= 6) score += 10;\n  else if (sigIds.length >= 4) score += 5;\n  else if (sigIds.length >= 2) score += 2;\n  score += VELOCITY_DELTA[theme.signal_type] || 0;\n  if (sigIds.length === 1) score = Math.min(score, 65);\n  if (sigIds.length === 0) score = Math.min(score, 40);\n  score = Math.max(0, Math.min(95, Math.round(score))); // Cap at 95% \u2014 no theme should claim absolute certainty\n\n  const confidence_level = score >= 75 ? 'high' : score >= 50 ? 'medium' : 'low';\n  const rawId = theme.theme_id;\n  const safeId = (rawId != null && String(rawId).trim()) || `theme-${baseTime}-${idx}`;\n  const { supporting_signals, ...rest } = theme;\n\n  const citations = sigIds\n    .filter(id => signalMap[id])\n    .map(id => ({\n      signal_id:    id,\n      title:        signalMap[id].title,\n      url:          signalMap[id].source_url,\n      source_name:  signalMap[id].source_name,\n      source_type:  signalMap[id].source_type,\n      published_at: signalMap[id].published_at\n    }));\n\n  const priorMatch = findPrior(theme.title);\n  return {\n    ...rest,\n    theme_id:              safeId,\n    confidence_score:      score,\n    confidence_level,\n    supporting_signal_ids: sigIds,\n    citations,\n    signal_count:          sigIds.length,\n    is_continuation:       !!priorMatch,\n    prev_confidence:       priorMatch ? priorMatch.confidence_score : null,\n    confidence_delta:      priorMatch ? score - priorMatch.confidence_score : null,\n    week_number, year,\n    processed_at:          new Date().toISOString()\n  };\n});\n\nthemes.sort((a, b) => b.confidence_score - a.confidence_score);\nconsole.log(`Scored ${themes.length} themes | Avg confidence: ${Math.round(themes.reduce((s,t) => s + t.confidence_score, 0) / (themes.length || 1))}`);\nreturn [{ json: { themes, week_number, year, pipeline_run_id, total_ingested, source_breakdown } }];"
+      },
+      "id": "921a7715-0952-452f-9931-c8679c9ae5bc",
+      "name": "Deterministic Score + Confidence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3320,
+        100
+      ],
+      "notes": "STEP 10: Rule-based scoring + citation URL resolution.\nReturns citations and supporting_signal_ids as native arrays for Supabase JSONB."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Generate the CalmFalcon Weekly Brief for Week {{ $('Deterministic Score + Confidence').first().json.week_number }}/{{ $('Deterministic Score + Confidence').first().json.year }}.\n\nDATE: {{ $('Build Search Queries').first().json.pipeline_date }}\nTOTAL SIGNALS ANALYZED: {{ $('Deterministic Score + Confidence').first().json.total_ingested }}\nTHEMES THIS WEEK: {{ $('Deterministic Score + Confidence').first().json.themes.length }}\n\nVERIFIED THEMES (sorted by confidence, highest first):\n{{ JSON.stringify($('Deterministic Score + Confidence').first().json.themes.map(t => ({ title: t.title, summary: t.summary, signal_type: t.signal_type, confidence_score: t.confidence_score, why_it_matters: t.why_it_matters, what_you_can_do: t.what_you_can_do })), null, 2) }}\n\nWrite the complete weekly brief following the format exactly.",
+        "options": {
+          "systemMessage": "<Role>\nYou are the weekly brief writer for CalmFalcon, an AI Signals Intelligence platform for enterprise AI teams.\n\nYour readers are AI Platform PMs and Engineering Leads at Series B+ companies who:\n- Own inference stacks, orchestration layers, and AI vendor relationships\n- Make build vs buy decisions on AI infrastructure\n- Are accountable to their CFO for AI cost and their CTO for platform reliability\n- Share this brief with their engineering org and executive leadership\n- Have 10 minutes maximum to absorb the week's most important AI signals\n\nWrite as a peer \u2014 a senior analyst briefing a technical equal, not a newsletter author writing for the masses.\n</Role>\n\n<Instruction>\nUsing the verified themes provided, write the complete CalmFalcon Weekly Brief. Follow the format in Task exactly. Every section has a word budget \u2014 treat it as a hard ceiling, not a target. The brief must be direct, evidence-backed, and immediately actionable. Never pad with filler sentences or generic AI commentary.\n</Instruction>\n\n<Task>\nWrite the brief in the following order. Do not add sections not listed here.\n\nSTEP 1 \u2014 HEADER\n# CalmFalcon Weekly Brief \u2014 Week {week_number}, {year}\n*{date} \u00b7 {N} themes \u00b7 {total_signals} signals analyzed*\n\nSTEP 2 \u2014 KEY TAKEAWAY (\u2264100 words)\nPLAN BEFORE WRITING: Before writing a single word, identify:\n1. The highest-confidence theme (by signal_type then confidence_score) \u2014 this is your lead for Sentence 1.\n2. The second theme that best contrasts or connects with it \u2014 this is Sentence 2.\n3. The pattern across all themes (cost pressure, OSS vs proprietary, speed vs safety, vendor consolidation) \u2014 this drives Sentences 3\u20134.\nOnly after identifying these three, begin writing.\n\nWrite 4-5 sentences synthesizing the week's most important themes:\n- Sentence 1 (mandatory): Must name a specific vendor or product from the themes. \u274c BANNED: \"This week saw many important developments across the AI landscape.\" \u2705 REQUIRED: Lead with the vendor/product driving the most important signal this week.\n- Sentence 2: Second most important theme \u2014 how it connects or contrasts with sentence 1\n- Sentence 3: A pattern or tension across themes (cost vs capability, OSS vs proprietary, speed vs safety)\n- Sentences 4-5: What this week's signals mean collectively \u2014 what to act on, what to watch, what to deprioritize\nReference actual vendors, tools, or benchmarks \u2014 never generic category language.\nGood: \"Anthropic and Google both shipped inference optimizations this week that directly pressure vLLM-based self-hosted stacks on cost \u2014 while LangGraph 0.2 quietly became production-ready, shifting the build-vs-buy calculus for teams evaluating agent orchestration vendors.\"\nALL-WATCH FALLBACK: If all themes are signal_type=WATCH, Key Takeaway should identify what the pattern across WATCH themes collectively signals about where the market is heading \u2014 frame it as: \"This week's signals collectively point to [specific directional trend] \u2014 [implication for AI platform teams].\"\n\nSTEP 3 \u2014 EXECUTIVE SUMMARY (\u226460 words)\nWrite exactly ONE declarative sentence using this structure: \"[Vendor/Product] [action verb] [specific thing] \u2014 [implication for AI platform teams in \u226410 words].\" Then add 1-2 follow-up sentences with supporting context. Do not write a list. Do not hedge with \"may\", \"could\", \"might\". Pick the single highest-confidence theme and state it as fact.\nALL-WATCH FALLBACK: If all themes are WATCH, frame the top theme as the signal most likely to require action within 30 days: \"The signal most likely to escalate to action in the next 30 days: [theme name] \u2014 [reason].\"\nBe direct.\n\nSTEP 4 \u2014 KEY THEMES\nInclude EVERY theme from the input. Do not skip or omit any theme \u2014 if the input has 8 themes, the Key Themes section must have 8 entries.\nList themes highest confidence first. For each theme use this exact structure:\n### {icon} {Title} [{signal_type} \u00b7 {confidence_score}% confidence]\n**What happened:** 1-2 sentences. Facts only \u2014 what changed, released, or announced.\n**Why it matters for your stack:** 1 sentence. Specific impact on inference, orchestration, cost, vendor decisions, or architecture. Not a generic statement.\n**Action this week:** One concrete action achievable in the next 5 business days. Not 'monitor' or 'stay informed'.\n\nSignal type icons: ACT=\ud83d\udd34  WATCH=\ud83d\udfe1\n\nSTEP 5 \u2014 WATCH LIST (\u226480 words total)\nRULE: Watch List items must come ONLY from themes with signal_type=WATCH in the verified JSON input. ACT themes are NOT eligible for the Watch List.\n- If there are WATCH themes: write ONE line per WATCH theme in the input. Format: \ud83d\udfe1 {theme name} \u2014 {one-sentence reason to track over the next 30 days}\n  IMPORTANT: It is correct to repeat themes already shown in Key Themes in the Watch List \u2014 WATCH themes appear in BOTH sections (full format in Key Themes, brief bullet in Watch List). Do NOT skip Watch List items to avoid repeating Key Themes. Do NOT invent Watch List items not in the input.\n  ALL-WATCH CHECK: If all 8 themes are WATCH, all 8 must appear in Key Themes AND all 8 must also appear as Watch List bullets. If the word budget would be exceeded, trim Watch List bullets to the 5 highest-confidence WATCH themes \u2014 but never trim Key Themes entries.\n- If there are ZERO WATCH themes: write exactly this one line and nothing else:\n  \ud83d\udfe1 No watch signals this week \u2014 all confirmed themes require immediate action.\nNEVER write Watch List items derived from ACT themes. NEVER invent Watch List topics from general AI knowledge.\nBad (BANNED): '\ud83d\udfe1 OpenAI API Adoption Rates \u2014 early adoption will indicate platform stability' \u2190 invented topic. Remove it.\nBad (BANNED): Showing only 3 Watch List bullets when the input has 8 WATCH themes and all 8 are already in Key Themes \u2190 omission error. All WATCH themes must appear in Watch List.\n\nSTEP 6 \u2014 FOOTER\n---\n*CalmFalcon AI Signals Intelligence \u00b7 Week {week_number}/{year}*\n</Task>\n\n<Guardrails>\nWORD COUNT (hard ceiling \u2014 enforced, not advisory):\n- Total brief: 580-680 words. Hard ceiling: 700 words.\n- If over 700: cut Watch List to 2 items first, then trim each \"Why it matters for your stack\" to one clause. Never cut Action items \u2014 they are the highest-value output.\n\nTONE:\n- Peer-level \u2014 not a newsletter, not a press release, not marketing copy\n- Direct and specific \u2014 no hyperbole, no vague superlatives (\"exciting\", \"game-changing\")\n- Evidence-backed \u2014 reference signal types and confidence levels so readers know what to trust\n- Actionable \u2014 every theme ends with a concrete recommendation, not \"watch this space\"\n\nTONE STANDARD \u2014 write like this, not like that:\n- Instead of \"This week saw many important developments\" \u2192 name the specific vendor, tool, or release driving the week\n- Instead of \"Monitor this space\" \u2192 give the specific action to take and the measurable outcome\n- Instead of \"It may be worth exploring\" \u2192 state the concrete next step with a timeline\n- Instead of \"AI teams should stay informed about\" \u2192 name the specific decision it enables or the risk it mitigates\n- Instead of generic headers like \"Inference\" or \"Safety\" \u2192 name the specific event: \"vLLM 0.4 Ships Chunked Prefill\"\nACKNOWLEDGE WHAT YOU KNOW AND WHAT YOU DON'T:\n- When only 1-2 themes are available, write a tighter Key Takeaway and note it honestly: \"This was a focused signal week \u2014 two high-confidence themes.\" Write quality, not volume.\n- When a theme's confidence is below 65%, reflect that in tone: \"Early signals suggest...\" rather than stating it as established fact.\n- When the Watch List has fewer than 2 WATCH themes, include only what exists \u2014 write 1 item rather than invent a second.\n- STRICT: Watch List items MUST come only from themes with signal_type=WATCH in the verified JSON you received as input. Never invent Watch List items from general AI knowledge or topics not present in the input themes. If there are zero WATCH themes in the input, write exactly: '\ud83d\udfe1 No watch signals this week \u2014 all confirmed themes require immediate action.'\n\nOUTPUT DISCIPLINE:\n- Follow section order exactly: Header \u2192 Key Takeaway \u2192 Executive Summary \u2192 Key Themes \u2192 Watch List \u2192 Footer\n- Include only sections specified above \u2014 no closing paragraph, no editorial commentary after the footer\n- Write for the reader, not the pipeline \u2014 omit signal_ids, confidence calculations, or pipeline metadata from the output\n- Every section stays within its word budget \u2014 trim before publishing, never pad to fill space\n</Guardrails>\n\n<Example>\n--- EXAMPLE A: Mixed ACT + WATCH (standard week) ---\nInput: 2 verified themes \u2014 GPT-5.4 release (ACT, 84%), RAGFlow OSS release (WATCH, 78%)\nWatch List MUST only contain the WATCH theme from input (RAGFlow). Do NOT invent topics not in the input.\n\n# CalmFalcon Weekly Brief \u2014 Week 13, 2026\n*March 25, 2026 \u00b7 2 themes \u00b7 244 signals analyzed*\n\n## \ud83d\udca1 Key Takeaway\nOpenAI's GPT-5.4 release this week raises the inference performance bar for enterprise teams evaluating model vendors \u2014 the key question is whether the capability gains justify migration costs from existing GPT-4o deployments. Simultaneously, RAGFlow's open-source RAG engine gaining traction signals that retrieval infrastructure is maturing fast enough to challenge proprietary RAG implementations. The underlying tension: OSS retrieval tooling is catching up while proprietary model APIs are raising the capability ceiling. AI Platform PMs should prioritize a GPT-5.4 benchmark this week; Engineering Leads evaluating RAG infrastructure should assess RAGFlow against their current stack before the next architecture review.\n\n## Executive Summary\nOpenAI released GPT-5.4 this week with reported inference latency improvements, making it directly relevant to teams on active model vendor evaluations or approaching GPT-4o contract renewals.\n\n## Key Themes\n\n### \ud83d\udd34 GPT-5.4 Release by OpenAI [ACT \u00b7 84% confidence]\n**What happened:** OpenAI released GPT-5.4, citing improved inference performance and enhanced task accuracy over its predecessor.\n**Why it matters for your stack:** Teams approaching GPT-4o contract renewal need benchmark data before committing \u2014 GPT-5.4 may change the cost-per-token calculus at scale.\n**Action this week:** Run GPT-5.4 against your highest-volume production workload using the OpenAI API and compare token cost and latency to your current GPT-4o baseline.\n\n### \ud83d\udfe1 RAGFlow Open-Source RAG Engine Gains Traction [WATCH \u00b7 78% confidence]\n**What happened:** RAGFlow, an open-source RAG engine integrating retrieval with agent frameworks, gained significant GitHub adoption this week.\n**Why it matters for your stack:** Engineering Leads evaluating retrieval infrastructure should assess whether RAGFlow can replace or augment proprietary RAG implementations at lower cost.\n**Action this week:** Clone the RAGFlow repo, run it against your top 3 retrieval test cases, and benchmark latency and accuracy against your current solution.\n\n## Watch List\n\ud83d\udfe1 RAGFlow Open-Source RAG Engine Gains Traction \u2014 early GitHub adoption signals retrieval infrastructure maturing; assess against your current stack before next architecture review.\n\n---\n*CalmFalcon AI Signals Intelligence \u00b7 Week 13/2026*\n\n--- EXAMPLE B: All-WATCH week (no ACT themes in input) ---\nInput: 3 WATCH themes \u2014 NVIDIA Fleet Command (WATCH, 69%), Domino MLOps Integration (WATCH, 62%), RAGFlow OSS Engine (WATCH, 57%)\n\n# CalmFalcon Weekly Brief \u2014 Week 14, 2026\n*April 1, 2026 \u00b7 3 themes \u00b7 241 signals analyzed*\n\n## \ud83d\udca1 Key Takeaway\nNVIDIA's Fleet Command extension to enterprise MLOps partners \u2014 now reaching Domino Data Lab and Oracle \u2014 signals accelerating vendor consolidation in managed ML infrastructure. Teams currently evaluating self-hosted MLOps stacks should factor in the operational overhead reduction that managed fleet orchestration offers before their next infrastructure review. The underlying pattern: hyperscaler-backed orchestration is encroaching on territory previously owned by open-source tooling. This week's signals collectively point toward a 30-day decision window for teams with active MLOps vendor evaluations.\n\n## Executive Summary\nThe signal most likely to escalate to action in the next 30 days: NVIDIA Fleet Command's expansion to Domino and Oracle partners \u2014 teams on active MLOps vendor evaluations should pull specs this week before the next architecture review cycle.\n\n## Key Themes\n\n### \ud83d\udfe1 NVIDIA Fleet Command Reaches Domino and Oracle [WATCH \u00b7 69% confidence]\n**What happened:** NVIDIA extended Fleet Command integration to Domino Data Lab and Oracle's enterprise MLOps offerings, adding managed orchestration to both platforms.\n**Why it matters for your stack:** Engineering Leads evaluating managed vs self-hosted MLOps face a narrowing window \u2014 Fleet Command integration changes the operational cost calculus for GPU-heavy workloads at scale.\n**Action this week:** Pull Domino Data Lab's Fleet Command integration spec and compare against your current orchestration overhead in your MLOps eval tracker.\n\n### \ud83d\udfe1 Domino Data Lab Extends Enterprise MLOps Stack [WATCH \u00b7 62% confidence]\n**What happened:** Domino Data Lab added new integrations to its enterprise MLOps platform, building on the NVIDIA Fleet Command partnership.\n**Why it matters for your stack:** AI Platform PMs with Domino in their vendor shortlist should update their evaluation criteria to include the new Fleet Command capability before scoring vendor options.\n**Action this week:** Request an updated Domino demo scoped to Fleet Command integration and GPU workload orchestration specifically.\n\n### \ud83d\udfe1 RAGFlow Integrates Agent Capabilities into OSS RAG Engine [WATCH \u00b7 57% confidence]\n**What happened:** RAGFlow added native agent capabilities to its open-source RAG engine pipeline on GitHub.\n**Why it matters for your stack:** Engineering Leads evaluating retrieval infrastructure should benchmark RAGFlow against their current RAG stack on integration complexity and latency before committing to a managed alternative.\n**Action this week:** Clone the RAGFlow repo and run it against your 3 highest-volume retrieval test cases. Log latency and accuracy results.\n\n## Watch List\n\ud83d\udfe1 NVIDIA Fleet Command Reaches Domino and Oracle \u2014 vendor consolidation in managed MLOps is accelerating; teams on active infrastructure evaluations should accelerate their timeline.\n\ud83d\udfe1 Domino Data Lab Extends Enterprise MLOps Stack \u2014 evaluation criteria should be updated to reflect new Fleet Command capability before vendor scoring.\n\ud83d\udfe1 RAGFlow Integrates Agent Capabilities into OSS RAG Engine \u2014 OSS RAG tooling is maturing; worth scoping before next architecture review.\n\n---\n*CalmFalcon AI Signals Intelligence \u00b7 Week 14/2026*\n</Example>"
+        }
+      },
+      "id": "a8ab6371-afcd-42ae-91d3-14f07801b1af",
+      "name": "Brief Writer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        3540,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "notes": "STEP 11: Generate polished weekly brief \u2264700 words.\nPersona-aware: AI Platform PM + Engineering Lead audience.\nEach theme: What happened + Why it matters for your stack + Action this week."
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo",
+        "options": {
+          "maxTokens": 1500,
+          "temperature": 0.5
+        }
+      },
+      "id": "781f4635-fd13-4dad-a614-32fd2a567701",
+      "name": "Brief Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        3600,
+        320
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ud6lfu4FVZ8L1pYz",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const briefText = $input.first().json.output || '';\nconst { themes, week_number, year, pipeline_run_id, total_ingested } = $('Deterministic Score + Confidence').first().json;\nconst prompt_version_id = $('Save Prompt Version').first().json.prompt_version_id || null;\n\nconst url = $vars.SUPABASE_URL;\nconst key = $vars.SUPABASE_KEY;\nif (!url || !key) throw new Error('SUPABASE_URL or SUPABASE_KEY workflow variable not set');\n\nconst headers = {\n  'apikey': key,\n  'Authorization': `Bearer ${key}`,\n  'Content-Type': 'application/json',\n  'Prefer': 'resolution=merge-duplicates'\n};\n\nconst asText = v => Array.isArray(v) ? v.join('\\n') : (v || null);\n\n// \u2500\u2500 GOLDEN SET ROUTING \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n// If run_id starts with \"run-golden-set-\", save to golden_set_* tables instead\n// of production tables. This keeps eval data isolated from live briefs.\nconst isGoldenSet = pipeline_run_id && pipeline_run_id.startsWith('run-golden-set-');\n\nif (isGoldenSet) {\n  console.log(`=== GOLDEN SET RUN \u2014 saving to golden_set_runs + golden_set_themes ===`);\n  console.log(`Run ID: ${pipeline_run_id} | Themes: ${themes.length}`);\n\n  // Save to golden_set_runs\n  const gsRun = {\n    id:                    pipeline_run_id,\n    golden_set_version:    'gs-v2.1',\n    prompt_version:        prompt_version_id,\n    run_date:              new Date().toISOString().split('T')[0],\n    signals_processed:     20,\n    themes_produced:       themes.length,\n    trap_signals_excluded: null, // fill in manually after scoring\n    rule3_edge_case:       null, // fill in manually: 'WATCH' or 'ACT'\n    notes:                 `Automated golden set run. Prompt: ${prompt_version_id || 'unknown'}. Score manually using CalmFalcon Golden Set - 20 Signals.md`\n  };\n\n  try {\n    await this.helpers.httpRequest({\n      method: 'POST',\n      url: `${url}/rest/v1/golden_set_runs?on_conflict=id`,\n      headers,\n      body: JSON.stringify([gsRun])\n    });\n    console.log('golden_set_runs: saved OK');\n  } catch(e) {\n    throw new Error(`SAVE FAILED [golden_set_runs]: ${e.message}`);\n  }\n\n  // Save to golden_set_themes\n  const gsThemeRows = themes.map(t => ({\n    run_id:             pipeline_run_id,\n    golden_set_version: 'gs-v1',\n    theme_id:           t.theme_id,\n    title:              t.title,\n    signal_type:        t.signal_type,\n    confidence_score:   t.confidence_score,\n    summary:            asText(t.summary),\n    why_it_matters:     asText(t.why_it_matters),\n    what_you_can_do:    Array.isArray(t.what_you_can_do) ? t.what_you_can_do : [t.what_you_can_do],\n    signal_ids:         Array.isArray(t.supporting_signal_ids) ? t.supporting_signal_ids : [],\n    expected_tier:      null, // fill in manually after scoring\n    tier_correct:       null  // fill in manually after scoring\n  }));\n\n  for (let i = 0; i < gsThemeRows.length; i++) {\n    const t = gsThemeRows[i];\n    try {\n      const resp = await this.helpers.request({\n        method: 'POST',\n        url: `${url}/rest/v1/golden_set_themes`,\n        headers: { ...headers, 'Prefer': 'return=minimal' },\n        body: JSON.stringify([t]),\n        resolveWithFullResponse: true,\n        simple: false\n      });\n      if (resp.statusCode >= 400) {\n        throw new Error(`HTTP ${resp.statusCode} | ${resp.body}`);\n      }\n    } catch(e) {\n      throw new Error(`SAVE FAILED [golden_set_themes] row ${i} (${t.theme_id}): ${e.message}`);\n    }\n  }\n\n  console.log(`golden_set_themes: ${gsThemeRows.length} rows saved OK`);\n  console.log(`=== GOLDEN SET SAVE COMPLETE \u2014 score manually, then insert into golden_set_eval_scores ===`);\n  return [{ json: { golden_set: true, run_id: pipeline_run_id, themes_saved: gsThemeRows.length } }];\n}\n\n// \u2500\u2500 PRODUCTION PATH (unchanged) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nconst takeawayMatch = briefText.match(/##[^\\n]*Key Takeaway[^\\n]*\\n([\\s\\S]*?)(?=\\n##|$)/);\nconst key_takeaway = takeawayMatch ? takeawayMatch[1].trim() : null;\n\nconst briefRow = {\n  brief_id:                `brief-W${week_number}-${year}`,\n  week_number, year,\n  title:                   `CalmFalcon Weekly Brief \u2014 Week ${week_number}/${year}`,\n  content:                 briefText,\n  key_takeaway,\n  total_themes:            themes.length,\n  total_signals_processed: total_ingested,\n  pipeline_run_id,\n  generated_at:            new Date().toISOString()\n};\n\nconst themeRows = themes.map(t => ({\n  theme_id:              t.theme_id,\n  week_number:           t.week_number,\n  year:                  t.year,\n  title:                 t.title,\n  summary:               asText(t.summary),\n  signal_type:           t.signal_type,\n  confidence_score:      t.confidence_score,\n  confidence_level:      t.confidence_level || null,\n  why_it_matters:        asText(t.why_it_matters),\n  what_you_can_do:       asText(t.what_you_can_do),\n  citations:             Array.isArray(t.citations) ? t.citations : [],\n  supporting_signal_ids: Array.isArray(t.supporting_signal_ids) ? t.supporting_signal_ids : [],\n  signal_count:          t.signal_count   || null,\n  processed_at:          t.processed_at   || null\n}));\n\nconst runRow = {\n  run_id:                  pipeline_run_id,\n  completed_at:            new Date().toISOString(),\n  week_number, year,\n  total_themes:            themes.length,\n  total_signals_processed: total_ingested,\n  avg_confidence:          Math.round(themes.reduce((s,t) => s + t.confidence_score, 0) / (themes.length || 1)),\n  breaking_count:          0,\n  rising_count:            themes.filter(t => t.signal_type === 'ACT').length,\n  emerging_count:          themes.filter(t => t.signal_type === 'WATCH').length,\n  stable_count:            0,\n  declining_count:         0,\n  themes_summary:          themes.map(t => ({ title: t.title, signal_type: t.signal_type, confidence_score: t.confidence_score })),\n  prompt_version_id\n};\n\ntry {\n  await this.helpers.httpRequest({ method: 'POST', url: `${url}/rest/v1/pipeline_runs?on_conflict=run_id`, headers, body: JSON.stringify([runRow]) });\n} catch(e) {\n  throw new Error(`SAVE FAILED [pipeline_runs]: ${e.message} | keys: ${Object.keys(runRow).join(', ')}`);\n}\n\nfor (let i = 0; i < themeRows.length; i++) {\n  const t = themeRows[i];\n  try {\n    const resp = await this.helpers.request({\n      method: 'POST',\n      url: `${url}/rest/v1/themes?on_conflict=theme_id`,\n      headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },\n      body: JSON.stringify([t]),\n      resolveWithFullResponse: true,\n      simple: false\n    });\n    if (resp.statusCode >= 400) {\n      throw new Error(`HTTP ${resp.statusCode} | supabase: ${resp.body} | signal_type: ${t.signal_type} | sample: ${JSON.stringify(t).substring(0, 400)}`);\n    }\n  } catch(e) {\n    throw new Error(`SAVE FAILED [themes] row ${i} (${t.theme_id}): ${e.message}`);\n  }\n}\n\ntry {\n  await this.helpers.httpRequest({ method: 'POST', url: `${url}/rest/v1/weekly_briefs?on_conflict=brief_id`, headers, body: JSON.stringify([briefRow]) });\n} catch(e) {\n  throw new Error(`SAVE FAILED [weekly_briefs]: ${e.message} | keys: ${Object.keys(briefRow).join(', ')}`);\n}\n\nreturn [{ json: runRow }];"
+      },
+      "id": "save-to-supabase",
+      "name": "Save to Supabase",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3760,
+        100
+      ],
+      "notes": "STEPS 12-14: Sequential upserts \u2014 pipeline_runs \u2192 themes \u2192 weekly_briefs. Sequential (not parallel) so error messages identify the exact failing table. signal_type stored as ACT/WATCH."
+    },
+    {
+      "parameters": {
+        "jsCode": "const url = $vars.SUPABASE_URL;\nconst key = $vars.SUPABASE_KEY;\nif (!url || !key) throw new Error('Set SUPABASE_URL and SUPABASE_KEY as workflow variables');\n\nconst VERSION_ID = \"pv-actwatch-v37\";\nconst VERSION_LABEL = 'v37.0 \u2014 DS: LangChain wrapper extraction + Strategy 3 theme_id scan for truncated JSON';\n\nconst row = {\n  version_id:          VERSION_ID,\n  version_label:       VERSION_LABEL,\n  main_agent_prompt:   \"You are a senior AI/ML industry analyst producing weekly signal intelligence for CalmFalcon \\u2014 an enterprise AI Signals Intelligence platform.\\n\\nAUDIENCE:\\nYour output is read by two personas at Series B+ companies ($50M+ revenue):\\n1. AI Platform PM \\u2014 owns inference stack, orchestration, reliability, and vendor decisions. Accountable for cost and platform stability. Needs to know what changed and whether to act.\\n2. Engineering Lead / Architect \\u2014 evaluates OSS frameworks and architecture patterns. Needs evidence-backed intelligence to avoid adopting hype. Makes build vs buy decisions.\\n\\nBoth personas spend 15-25 hrs/week manually tracking AI signals. Your job is to cut that to under 4 hrs by giving them only the signals that matter \\u2014 with confidence scores and clear actions.\\n\\nRELEVANT DOMAINS (prioritize themes here):\\n- LLM/model releases and capability changes (OpenAI, Anthropic, Google, Meta, Mistral, Cohere)\\n- AI inference, serving, and orchestration (vLLM, TGI, Triton, Ray Serve, SGLang)\\n- Agent frameworks and multi-agent systems (LangGraph, CrewAI, AutoGen, Semantic Kernel)\\n- RAG, vector databases, and retrieval patterns (Weaviate, Pinecone, pgvector, chunking strategies)\\n- Enterprise AI governance, safety, and compliance (EU AI Act, NIST, SOC 2 for AI)\\n- MLOps, evaluation, and platform infrastructure (LangSmith, Weave, Arize, Phoenix)\\n- AI compute, hardware, and cost changes (GPU availability, pricing, quantization advances)\\n- Open-source model releases with enterprise applicability (weights available, permissive license)\\n\\nLOW-VALUE SIGNALS (deprioritize or exclude):\\n- Consumer AI features with no enterprise/infrastructure relevance\\n- Funding announcements with no product or capability impact\\n- Opinion pieces without substantive technical evidence\\n- Duplicate announcements from the same source\\n- Academic surveys or meta-analyses of AI evaluation techniques with no specific tool, benchmark, or framework release \\u2014 surface specific eval tool releases (LangSmith, Weave, Promptfoo, Arize, etc.) as individual themes instead\\n- Broad category themes like 'Emergence of Multi-Agent Systems' or 'Rise of Agentic AI' with no specific framework release or production adoption signal \\u2014 instead surface the specific tool or release driving the trend (e.g. 'LangGraph 0.2 hits production-ready milestone' or 'AutoGen 0.4 GA adds enterprise memory support')\\n\\nTHEME SPECIFICITY TEST \\u2014 apply this to every theme before outputting:\\nAsk: 'Could this theme title have been written last week, or next week, without changing?' If yes, the theme is too abstract. Either (1) replace the title and summary with the specific event driving it this week, or (2) drop the theme entirely.\\nTitles that always fail this test: 'Rise of X', 'Emergence of Y', 'Growth of Z', 'Adoption of X', 'The Future of Y', 'Advances in X', 'X Continues to Evolve'\\nTitles that pass: 'vLLM 0.4 ships chunked prefill cutting P99 latency 40%', 'Anthropic updates enterprise usage policy ahead of Claude 4 launch', 'LangGraph 0.2 reaches production-ready GA with built-in persistence'\\n\\nCONFIDENCE SCORING (start at 50, adjust by evidence quality):\\n+25 \\u2014 Multiple major vendors (OpenAI, Anthropic, Google, Meta) announce on the same topic\\n+20 \\u2014 Primary source is a major vendor's official release or documentation\\n+15 \\u2014 Newsletter and vendor documentation independently corroborate\\n+10 \\u2014 Research paper has real-world implementation pickup by practitioners\\n+5  \\u2014 4 or more independent sources cover the same signal\\n-15 \\u2014 Announcement is vague with no concrete technical details\\n-20 \\u2014 Single low-authority source only (blog post, tweet, opinion piece)\\n\\nSPREAD REQUIREMENT: Confidence scores across all themes must span at least 20 points (e.g., lowest theme at 52, highest at 78). If all themes cluster within a 10-point range, recalibrate relative to each other \\u2014 the theme with the weakest sourcing should be meaningfully lower than the theme with the strongest multi-source corroboration.\\n\\nSIGNAL TYPE DEFINITIONS (apply strictly \\u2014 do not upgrade without clear evidence):\\n- BREAKING: Major vendor announcement or release in the last 48 hours with immediate enterprise impact\\n- RISING: Accelerating trend with momentum; 2+ independent source types agree (e.g., vendor + newsletter + GitHub activity)\\n- EMERGING: Early credible signal from 1-2 sources; worth monitoring but not yet actionable\\n- STABLE: Consistent background signal; no meaningful change from prior week\\n- DECLINING: Was prominent in prior weeks, losing momentum or superseded by newer developments\\n\\nFor why_it_matters: Write 2-3 sentences. Cover all of: (1) specific impact on the persona's day-to-day \\u2014 inference latency, vendor lock-in risk, cost, reliability, or architecture decisions, (2) who this affects most and why (AI Platform PM vs Engineering Lead), (3) urgency \\u2014 does this require action this week, this quarter, or is it a slow-burn shift to track. Never write generic statements like 'this is important for AI teams' \\u2014 always name the specific implication.\\nExample: 'Engineering Leads running self-hosted inference on vLLM will see immediate P99 latency improvement at high concurrency without infrastructure changes. AI Platform PMs should factor this into Q2 capacity planning \\u2014 the cost reduction is significant enough to revisit make-vs-buy decisions on inference. This is a this-week decision for teams with active vendor evaluations.'\\n\\nFor what_you_can_do: Write 2-3 concrete steps, not just one. Each step must be specific and achievable within the next 5 business days. Format as a short numbered list within the field.\\nExample: '1. Run the vLLM 0.4 chunked prefill benchmark against your current serving baseline at peak QPS. 2. Share results with your infrastructure vendor contact and ask if they support equivalent optimizations. 3. If benchmarks show >20% improvement, escalate to architecture review before next capacity commit.'\\nBad actions: 'Monitor this space', 'Stay informed', 'Consider exploring', 'It may be worth looking into'.\\n\\nSUMMARY QUALITY CHECKLIST \\u2014 write 4-5 sentences per summary covering all of these:\\n1. What specifically changed or was released this week \\u2014 name the product, version, vendor, or paper (bad: 'There are developments in agent frameworks', good: 'LangGraph 0.2 shipped stateful multi-agent loops with built-in persistence')\\n2. Why now \\u2014 what triggered this signal this week, not last week (new release, benchmark result, policy update, adoption spike)\\n3. Scale or evidence \\u2014 include a number, benchmark, or adoption signal where available (e.g. '40% latency reduction at 100 QPS', '3,000 GitHub stars in 48 hours', 'adopted by 12 Fortune 500 teams')\\n4. What is changing in the broader ecosystem as a result \\u2014 upstream or downstream effects on tools, vendors, or workflows\\n5. Any notable tension, risk, or open question this signal raises for enterprise teams (e.g. vendor lock-in, maturity concerns, competing approaches)\\n\\nOutput ONLY valid JSON. No markdown fences. No trailing text. No commentary.\",\n  verifier_prompt:     \"You are a quality-control verifier for CalmFalcon's AI signal intelligence output. CalmFalcon serves AI Platform PMs and Engineering Leads who make real infrastructure and vendor decisions based on this data. Errors and vague recommendations cost them credibility with their leadership teams.\\n\\nApply ALL rules below. Make corrections silently \\u2014 do not explain changes, just return the corrected JSON.\\n\\nRULE 1 \\u2014 SIGNAL ID VALIDATION (hard rule, no exceptions):\\n- Every ID in supporting_signal_ids must appear verbatim in the signal cards provided above\\n- Strip any ID that does not appear in the signal cards \\u2014 hallucinated IDs are a trust-breaking error\\n\\nRULE 2 \\u2014 MINIMUM EVIDENCE THRESHOLD:\\n- Each theme requires \\u22652 verified signal IDs after Rule 1 stripping\\n- Exception: keep a theme with only 1 signal ID if that signal's source is an official vendor domain (openai.com, anthropic.com, aws.amazon.com, cloud.google.com, ai.meta.com, nvidia.com, mistral.ai, cohere.com, huggingface.co, databricks.com, groq.com, together.ai, fireworks.ai, snowflake.com, ibm.com) \\u2014 a single official vendor announcement is high-authority evidence\\n- Remove the theme only if it has 0 verified signal IDs, or 1 signal ID from a low-authority source (blog, newsletter, social media)\\n\\nRULE 3 \\u2014 SIGNAL TYPE ACCURACY:\\n- BREAKING: only if the primary source is a major vendor (OpenAI, Anthropic, Google, Meta, Mistral) AND the signal is from the last 48 hours. If timing is unclear, downgrade to RISING.\\n- RISING: only if 2+ independent source types corroborate (vendor + newsletter counts; two newsletters do not count as 2 types)\\n- DECLINING: only if there is explicit evidence of reduced momentum \\u2014 prior week context shows it was higher priority, or sources reference it losing ground\\n- EMERGING: appropriate for 1-2 credible sources without strong corroboration\\n- When in doubt, downgrade \\u2014 do not upgrade without clear evidence\\n\\nRULE 4 \\u2014 CONFIDENCE SCORE CALIBRATION:\\n- Score must reflect evidence quality, not topic importance or novelty\\n- A fascinating topic with weak sourcing must score below 55\\n- A routine topic with 5 corroborating major sources should score above 75\\n- If a score seems inflated relative to the evidence in the signal cards, reduce it\\n- If a score seems deflated relative to strong multi-source corroboration, increase it\\n\\nRULE 5 \\u2014 ENTERPRISE RELEVANCE:\\n- Every theme must be relevant to AI Platform PMs or Engineering Leads managing inference, orchestration, or AI infrastructure\\n- Remove themes that are purely consumer AI features, general tech news, or have no infrastructure/platform implications\\n\\nRULE 6 \\u2014 ACTIONABILITY OF what_you_can_do:\\n- Must contain 2-3 specific, concrete steps achievable within 5 business days\\n- Rewrite any what_you_can_do that contains any of these phrases: 'monitor', 'watch', 'stay informed', 'keep an eye', 'follow developments', 'track this', 'consider exploring', 'it may be worth', 'you might want to', 'think about', 'look into', 'be aware of'\\n- Rewrite formula per step: [specific tool or vendor] + [specific action verb] + [measurable outcome]\\n- If what_you_can_do is only 1 sentence or 1 step, expand it to 2-3 steps using context from the signal cards\\n- Good: '1. Run a cost comparison between GPT-4o and Claude 3.5 Sonnet for your highest-volume workload. 2. Pull last 30 days of inference logs and calculate per-token cost at your current mix. 3. Present findings to your vendor contact before contract renewal.'\\n- Bad: 'Watch for further developments' / 'Consider exploring this space' / 'It may be worth looking into'\\n\\nRULE 7 \\u2014 TITLE AND SUMMARY QUALITY:\\n- Title must be \\u22648 words and describe the theme concisely \\u2014 not a headline, not vague\\n- Summary must be 4-5 sentences covering: (1) what specifically changed, (2) why this week, (3) a scale or evidence signal with numbers where available, (4) ecosystem impact, (5) risk or open question for enterprise teams\\n- Bad summary: 'There are new developments in AI agent frameworks'\\n- Good summary: 'LangGraph 0.2 shipped stateful multi-agent loops with built-in persistence, removing the need for custom state management in production agent workflows. The release follows 6 months of community requests and coincides with AutoGen 0.4 hitting GA, signaling a maturation moment for the agent orchestration category. Early adopters report 60% reduction in boilerplate for multi-step pipelines. This raises the bar for proprietary orchestration vendors who have struggled to match OSS iteration speed. The key open question for enterprise teams: whether LangGraph's tight LangChain coupling creates lock-in risk as the ecosystem fragments.'\\n- If a summary is fewer than 3 sentences or lacks specific technical detail, expand it using evidence from the supporting signal cards\\n\\nRULE 8 \\u2014 PRESERVE STRUCTURE:\\n- Keep all theme_ids unchanged\\n- Do not add new themes \\u2014 only validate, correct, or remove\\n- Return all fields for every theme that passes validation\\n\\nRULE 9 \\u2014 SIGNAL TYPE DIVERSITY:\\n- No single signal type should represent more than 60% of themes\\n- If 5+ themes share the same type (e.g., 5 of 7 are RISING), review borderline themes and downgrade those with the weakest corroboration: RISING \\u2192 EMERGING if only 1 source type is present; BREAKING \\u2192 RISING if announcement is >48 hours old or lacks direct vendor confirmation\\n- Do not fabricate diversity \\u2014 only downgrade when evidence supports it\\n\\nRULE 10 \\u2014 SIGNAL-THEME TOPICAL COHERENCE:\\n- Every signal in supporting_signal_ids must be topically relevant to the theme it supports \\u2014 not just related to AI generally\\n- Check each signal's title/source against the theme title. If the signal is about a different domain, remove it from that theme's supporting_signal_ids\\n- Common misattribution patterns to catch: hardware signals (chip releases, GPU benchmarks, Apple/NVIDIA announcements) assigned to software/framework themes; consumer product launches assigned to enterprise infrastructure themes; governance/policy signals assigned to technical capability themes\\n- If removing the misattributed signal drops a theme below 2 signal IDs (Rule 2), remove the theme entirely or reassign the signal to the correct theme if one exists\\n\\nOutput ONLY valid JSON. No explanations, no commentary, no markdown fences.\",\n  brief_writer_prompt: \"You are the weekly brief writer for CalmFalcon, an AI Signals Intelligence platform for enterprise AI teams.\\n\\nAUDIENCE:\\nAI Platform PMs and Engineering Leads at Series B+ companies. They:\\n- Own inference stacks, orchestration layers, and AI vendor relationships\\n- Make build vs buy decisions on AI infrastructure\\n- Are accountable to their CFO for AI cost and their CTO for platform reliability\\n- Share this brief with their engineering org and executive leadership\\n- Have 10 minutes max to absorb the week's most important AI signals\\n\\nTONE:\\n- Peer-level \\u2014 write as a senior analyst briefing a technical peer, not a newsletter for the masses\\n- Direct and specific \\u2014 no marketing language, no hyperbole, no vague superlatives\\n- Evidence-backed \\u2014 reference signal types and confidence levels so readers know what to trust\\n- Actionable \\u2014 every theme ends with a concrete recommendation, not 'watch this space'\\n- Concise \\u2014 say it once, say it clearly. No filler sentences.\\n\\nWORD COUNT DISCIPLINE (enforced \\u2014 not advisory):\\n- Target: 580\\u2013680 words. Hard ceiling: 700 words.\\n- Section budgets: Key Takeaway \\u2264100 words \\u00b7 Executive Summary \\u226460 words \\u00b7 each Key Theme block \\u226480 words \\u00b7 Watch List \\u226480 words total\\n- If over 700: cut Watch List to 2 items first, then trim 'Why it matters for your stack' to one clause each\\n- Never cut Action items \\u2014 they are the highest-value output\\n\\nFORMAT (strict markdown):\\n\\n# CalmFalcon Weekly Brief \\u2014 Week {week_number}, {year}\\n*{date} \\u00b7 {N} themes \\u00b7 {total_signals} signals analyzed*\\n\\n## \\ud83d\\udca1 Key Takeaway\\n4-5 sentences synthesizing the week's most important themes into a coherent narrative. This is the first thing the user reads \\u2014 make it count.\\nStructure:\\n- Sentence 1: The single biggest shift or development this week and why it matters now\\n- Sentence 2: The second most important theme and how it connects to or contrasts with sentence 1\\n- Sentence 3: An emerging pattern or tension across multiple themes (e.g. cost vs capability tradeoff, OSS vs proprietary, speed vs safety)\\n- Sentence 4-5: What this week's signals mean collectively for AI platform teams \\u2014 what to act on, what to watch, what to deprioritize\\nTone: peer-level analyst, not a newsletter. Specific, direct, no filler. Reference actual vendors, tools, or benchmarks from the themes.\\nBad: 'This week saw many important developments across the AI landscape.'\\nGood: 'Anthropic and Google both shipped inference optimizations this week that directly pressure vLLM-based self-hosted stacks on cost \\u2014 while LangGraph 0.2 quietly became production-ready, shifting the build-vs-buy calculus for teams evaluating agent orchestration vendors.'\\n\\n## Executive Summary\\n2-3 sentences maximum. State the single most impactful signal for AI platform teams this week. Be direct \\u2014 what happened and why it matters right now.\\n\\n## Key Themes\\nList themes highest confidence first. For each theme:\\n\\n### {icon} {Title} [{signal_type} \\u00b7 {confidence_score}% confidence]\\n**What happened:** 1-2 sentences. Facts only \\u2014 what changed, what was released, what was announced.\\n**Why it matters for your stack:** 1 sentence. Specific impact on inference, orchestration, cost, vendor decisions, or architecture \\u2014 not a generic statement.\\n**Action this week:** One concrete, specific action. Must be achievable in the next 5 business days. Not 'monitor' or 'stay informed'.\\n\\nSignal type icons: BREAKING=\\ud83d\\udd34 RISING=\\ud83d\\udfe0 EMERGING=\\ud83d\\udfe1 STABLE=\\ud83d\\udfe2 DECLINING=\\u2b07\\ufe0f\\n\\n## Watch List\\n2-3 EMERGING signals to track next week. One line each: icon + theme name + one-sentence reason to watch.\\n\\n---\\n*CalmFalcon AI Signals Intelligence \\u00b7 Week {week_number}/{year}*\\n\\nDo not add any content outside this format. Do not add headers that aren't in the format above.\",\n  notes: 'Auto-saved by pipeline. Update VERSION_LABEL and VERSION_ID when you change any agent prompt.'\n};\n\nconst headers = {\n  'apikey': key,\n  'Authorization': `Bearer ${key}`,\n  'Content-Type': 'application/json',\n  'Prefer': 'resolution=merge-duplicates'\n};\n\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: `${url}/rest/v1/prompt_versions?on_conflict=version_id`,\n  headers,\n  body: JSON.stringify([row])\n});\n\nconsole.log(`Prompt version saved: ${VERSION_ID}`);\nreturn [{ json: { prompt_version_id: VERSION_ID, ...$input.first().json } }];"
+      },
+      "id": "save-prompt-version",
+      "name": "Save Prompt Version",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        500
+      ],
+      "notes": "Upserts current prompt snapshot to prompt_versions. Update VERSION_LABEL + VERSION_ID when you change any agent prompt."
+    },
+    {
+      "parameters": {
+        "jsCode": "const { pipeline_date, week_number, year, pipeline_run_id } = $input.first().json;\n\nconst githubToken = $vars.GITHUB_TOKEN;\nconst headers = {\n  'Accept': 'application/vnd.github.v3+json',\n  ...(githubToken ? { 'Authorization': `Bearer ${githubToken}` } : {})\n};\n\nconst since7  = new Date(Date.now() -  7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];\nconst since14 = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];\n\nconst seenRepos = new Set();\nconst githubSignals = [];\n\n// \u2500\u2500\u2500 TIER 1: New Releases from top AI orgs (last 7 days) \u2500\u2500\u2500\n// These are concrete events (tagged versions) \u2014 ACT-eligible\nconst topAIOrgs = [\n  'openai', 'anthropic-ai', 'google', 'google-deepmind', 'meta-llama', 'mistralai',\n  'microsoft', 'huggingface', 'langchain-ai', 'run-llama', 'vllm-project',\n  'ray-project', 'pytorch', 'tensorflow', 'nvidia', 'cohere-ai', 'groq',\n  'BerriAI', 'infiniflow', 'crewAIInc', 'AgentOps-AI', 'letta-ai',\n  'MLflow', 'wandb', 'pinecone-io', 'weaviate', 'qdrant'\n];\n\nconst releaseResults = await Promise.allSettled(\n  topAIOrgs.map(org =>\n    this.helpers.httpRequest({\n      method: 'GET',\n      url: `https://api.github.com/search/repositories?q=org:${org}+pushed:>${since7}&sort=updated&order=desc&per_page=10`,\n      headers\n    })\n  )\n);\n\n// For each repo found, check if it has a release in last 7 days\nconst reposToCheckReleases = [];\nfor (const result of releaseResults) {\n  if (result.status !== 'fulfilled') continue;\n  for (const repo of (result.value.items || [])) {\n    reposToCheckReleases.push(repo);\n  }\n}\n\n// Batch check releases (top 50 most-starred repos to stay within rate limits)\nreposToCheckReleases.sort((a, b) => b.stargazers_count - a.stargazers_count);\nconst topReposForReleases = reposToCheckReleases.slice(0, 50);\n\nconst releaseChecks = await Promise.allSettled(\n  topReposForReleases.map(repo =>\n    this.helpers.httpRequest({\n      method: 'GET',\n      url: `https://api.github.com/repos/${repo.full_name}/releases?per_page=3`,\n      headers\n    }).then(releases => ({ repo, releases }))\n  )\n);\n\nfor (const result of releaseChecks) {\n  if (result.status !== 'fulfilled') continue;\n  const { repo, releases } = result.value;\n  if (seenRepos.has(repo.id)) continue;\n\n  // Check if any release was published in last 7 days\n  const recentRelease = (releases || []).find(r => {\n    const pubDate = new Date(r.published_at || r.created_at);\n    return pubDate >= new Date(since7);\n  });\n\n  if (recentRelease) {\n    // Skip alpha/beta/RC releases \u2014 too early for enterprise intelligence\n    const releaseName = recentRelease.tag_name || recentRelease.name || '';\n    if (/alpha|beta|rc\\d|pre|canary|nightly|dev\\d/i.test(releaseName)) continue;\n    \n    seenRepos.add(repo.id);\n    githubSignals.push({\n      url:            recentRelease.html_url || repo.html_url,\n      title:          `${repo.full_name} releases ${releaseName} \u2014 ${repo.description || 'No description'}`,\n      content:        `RELEASE: ${releaseName} | Stars: ${repo.stargazers_count} | ${recentRelease.body ? recentRelease.body.substring(0, 500) : repo.description || ''}`,\n      score:          Math.min(0.99, 0.7 + (repo.stargazers_count / 50000)),\n      published_date: recentRelease.published_at || recentRelease.created_at,\n      github_tier:    'release'\n    });\n  }\n}\n\nconsole.log(`GitHub Tier 1 (Releases): ${githubSignals.length} repos with new releases`);\n\n// \u2500\u2500\u2500 TIER 2: New repos gaining traction (created last 14 days, stars > 50) \u2500\u2500\u2500\n// Genuinely new projects \u2014 ACT-eligible if from known vendor\nconst newRepoQueries = [\n  `topic:llm+topic:ai+created:>${since14}+stars:>50&sort=stars&order=desc&per_page=30`,\n  `topic:agent+topic:ai+created:>${since14}+stars:>50&sort=stars&order=desc&per_page=30`,\n  `topic:rag+created:>${since14}+stars:>30&sort=stars&order=desc&per_page=20`,\n  `topic:mlops+created:>${since14}+stars:>30&sort=stars&order=desc&per_page=20`,\n];\n\nconst newRepoResults = await Promise.allSettled(newRepoQueries.map(q =>\n  this.helpers.httpRequest({\n    method: 'GET',\n    url: `https://api.github.com/search/repositories?q=${q}`,\n    headers\n  })\n));\n\nlet tier2Count = 0;\nfor (const result of newRepoResults) {\n  if (result.status !== 'fulfilled') continue;\n  for (const repo of (result.value.items || [])) {\n    if (seenRepos.has(repo.id)) continue;\n    seenRepos.add(repo.id);\n    tier2Count++;\n    githubSignals.push({\n      url:            repo.html_url,\n      title:          `NEW: ${repo.full_name} \u2014 ${repo.description || 'No description'}`,\n      content:        `NEW REPO | Stars: ${repo.stargazers_count} | Forks: ${repo.forks_count} | Language: ${repo.language || 'N/A'} | Created: ${repo.created_at} | ${repo.description || ''}`,\n      score:          Math.min(0.99, 0.5 + (repo.stargazers_count / 5000)),\n      published_date: repo.created_at,\n      github_tier:    'new_repo'\n    });\n  }\n}\n\nconsole.log(`GitHub Tier 2 (New Repos): ${tier2Count} new repos with traction`);\n\n// \u2500\u2500\u2500 TIER 3: Velocity spikes (established repos with unusual star growth) \u2500\u2500\u2500\n// Detect repos where recent activity suggests a spike \u2014 WATCH tier only\nconst velocityQueries = [\n  `topic:llm+language:python+stars:>1000+pushed:>${since7}&sort=stars&order=desc&per_page=30`,\n  `topic:agent+stars:>500+pushed:>${since7}&sort=stars&order=desc&per_page=20`,\n  `topic:rag+stars:>500+pushed:>${since7}&sort=stars&order=desc&per_page=20`,\n];\n\nconst velocityResults = await Promise.allSettled(velocityQueries.map(q =>\n  this.helpers.httpRequest({\n    method: 'GET',\n    url: `https://api.github.com/search/repositories?q=${q}`,\n    headers\n  })\n));\n\n// For velocity repos, check commit activity to detect spikes\nconst velocityCandidates = [];\nfor (const result of velocityResults) {\n  if (result.status !== 'fulfilled') continue;\n  for (const repo of (result.value.items || [])) {\n    if (seenRepos.has(repo.id)) continue;\n    velocityCandidates.push(repo);\n  }\n}\n\n// Check weekly commit activity for top candidates\nvelocityCandidates.sort((a, b) => b.stargazers_count - a.stargazers_count);\nconst topVelocity = velocityCandidates.slice(0, 30);\n\nconst activityChecks = await Promise.allSettled(\n  topVelocity.map(repo =>\n    this.helpers.httpRequest({\n      method: 'GET',\n      url: `https://api.github.com/repos/${repo.full_name}/stats/commit_activity`,\n      headers\n    }).then(weeks => ({ repo, weeks }))\n    .catch(() => ({ repo, weeks: [] }))\n  )\n);\n\nlet tier3Count = 0;\nfor (const result of activityChecks) {\n  if (result.status !== 'fulfilled') continue;\n  const { repo, weeks } = result.value;\n  if (!Array.isArray(weeks) || weeks.length < 4) continue;\n  if (seenRepos.has(repo.id)) continue;\n\n  // Compare last week's commits to 4-week average\n  const lastWeek = weeks[weeks.length - 1]?.total || 0;\n  const prev4Avg = weeks.slice(-5, -1).reduce((s, w) => s + (w.total || 0), 0) / 4;\n\n  // Flag if last week had >2x the 4-week average commits (velocity spike)\n  if (prev4Avg > 0 && lastWeek >= prev4Avg * 2 && lastWeek >= 10) {\n    seenRepos.add(repo.id);\n    tier3Count++;\n    const spikeRatio = (lastWeek / prev4Avg).toFixed(1);\n    githubSignals.push({\n      url:            repo.html_url,\n      title:          `VELOCITY: ${repo.full_name} \u2014 ${repo.description || 'No description'}`,\n      content:        `VELOCITY SPIKE: ${spikeRatio}x commit increase (${lastWeek} commits vs ${Math.round(prev4Avg)} avg) | Stars: ${repo.stargazers_count} | ${repo.description || ''}`,\n      score:          Math.min(0.95, 0.4 + (parseFloat(spikeRatio) * 0.1) + (repo.stargazers_count / 50000)),\n      published_date: repo.pushed_at,\n      github_tier:    'velocity_spike'\n    });\n  }\n}\n\nconsole.log(`GitHub Tier 3 (Velocity): ${tier3Count} repos with commit spikes`);\n\n// Sort by score, keep top 50 (per PRD: \"Top 50 GitHub Repos for the week\")\ngithubSignals.sort((a, b) => b.score - a.score);\nconst top50 = githubSignals.slice(0, 50);\n\nconst tierBreakdown = {\n  releases: top50.filter(s => s.github_tier === 'release').length,\n  new_repos: top50.filter(s => s.github_tier === 'new_repo').length,\n  velocity: top50.filter(s => s.github_tier === 'velocity_spike').length,\n};\n\nconst githubBatch = { category: 'github', weight: 82, results: top50 };\n\nconsole.log(`GitHub SUMMARY: ${top50.length} signals (${tierBreakdown.releases} releases, ${tierBreakdown.new_repos} new repos, ${tierBreakdown.velocity} velocity spikes)`);\n\nreturn [{ json: { fetched: [githubBatch], pipeline_date, week_number, year, pipeline_run_id } }];"
+      },
+      "id": "fetch-github-trending",
+      "name": "Fetch GitHub Trending",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        180
+      ],
+      "notes": "Fetches top 40 AI/LLM repos by velocity and stars from GitHub API. Runs in PARALLEL with Fetch via Tavily \u2014 outputs own batch only. Merged before Process Signals."
+    },
+    {
+      "parameters": {
+        "jsCode": "// THEME LOGGER \u2014 logs Main Analysis Agent output before Verifier strips themes\nconst raw = $input.first().json.output || '{}';\n\nlet parsed = { themes: [] };\ntry {\n  const match = raw.match(/\\{[\\s\\S]*\"themes\"[\\s\\S]*\\}/);\n  if (match) parsed = JSON.parse(match[0]);\n  else parsed = JSON.parse(raw);\n} catch(e) {\n  console.log('Theme Logger: parse failed \u2014', e.message);\n}\n\nconst themes = parsed.themes || [];\nconsole.log(`=== THEME LOGGER: Main Analysis Agent produced ${themes.length} themes before Verifier ===`);\nthemes.forEach((t, i) => {\n  const sigCount = (t.supporting_signal_ids || []).length;\n  console.log(`  [${i+1}] ${t.title} | type=${t.signal_type} | conf=${t.confidence_score} | signals=${sigCount} | ids=${JSON.stringify(t.supporting_signal_ids || [])}`);\n});\nconsole.log(`=== END THEME LOGGER ===`);\n\n// Pass through \u2014 inject pre_verifier_theme_count so it's visible in n8n node output\nconst passthrough = $input.first().json;\nreturn [{ json: { ...passthrough, pre_verifier_theme_count: themes.length } }];"
+      },
+      "id": "theme-logger",
+      "name": "Theme Logger",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3100,
+        100
+      ],
+      "notes": "STEP 8e: DIAGNOSTIC \u2014 logs pre-Verifier theme count as pre_verifier_theme_count in output JSON. Compare with Aggregate collected_theme_count to see if Verifier is stripping themes."
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "merge-fetch-branches",
+      "name": "Merge Fetch Branches",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        680,
+        100
+      ],
+      "notes": "Waits for both Fetch via Tavily and Fetch GitHub Trending to complete, then passes all items to Process Signals which combines the fetched arrays."
+    },
+    {
+      "parameters": {
+        "jsCode": "const { signal_cards, top_signals, ...rest } = $input.first().json;\n\n// \u2500\u2500 VENDOR DOMAIN MAP \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n// All subdomains/domains that belong to the same vendor \u2192 same cluster\nconst VENDOR_MAP = {\n  'NVIDIA':     ['nvidia.com', 'investor.nvidia.com', 'nvidianews.nvidia.com', 'developer.nvidia.com', 'resources.nvidia.com'],\n  'OpenAI':     ['openai.com', 'help.openai.com', 'cdn.openai.com', 'platform.openai.com', 'api.openai.com'],\n  'Anthropic':  ['anthropic.com', 'docs.anthropic.com', 'console.anthropic.com'],\n  'Google':     ['blog.google', 'cloud.google.com', 'ai.google.dev', 'deepmind.com', 'deepmind.google', 'research.google', 'google.com', 'vids.google.com', 'workspace.google.com'],\n  'Meta':       ['ai.meta.com', 'about.fb.com', 'research.facebook.com', 'meta.com'],\n  'Microsoft':  ['microsoft.com', 'azure.microsoft.com', 'research.microsoft.com', 'techcommunity.microsoft.com'],\n  'Mistral':    ['mistral.ai', 'docs.mistral.ai'],\n  'HuggingFace':['huggingface.co', 'hf.co'],\n  'AWS':        ['aws.amazon.com', 'amazonaws.com'],\n  'Cohere':     ['cohere.com', 'docs.cohere.com'],\n  'Databricks': ['databricks.com', 'docs.databricks.com'],\n};\n\n// Build reverse lookup: domain fragment \u2192 vendor name\nconst domainToVendor = {};\nfor (const [vendor, domains] of Object.entries(VENDOR_MAP)) {\n  for (const d of domains) domainToVendor[d] = vendor;\n}\n\nfunction getVendor(domainStr) {\n  // domainStr comes from signal_cards second bracket: \"VENDOR:investor.nvidia.com\" or \"GITHUB:github.com\"\n  const raw = (domainStr || '').replace(/^[^:]+:/, '').toLowerCase();\n  // Direct fragment match\n  for (const [fragment, vendor] of Object.entries(domainToVendor)) {\n    if (raw.includes(fragment)) return vendor;\n  }\n  // Fuzzy match: check if any vendor name appears in the domain or title context\n  return null;\n}\n\n// Also check signal titles for vendor product names to catch signals from 3rd-party domains\n// writing about a vendor (e.g., InfoWorld writing about Google inference)\nconst VENDOR_PRODUCTS = {\n  'Google': ['gemma', 'gemini', 'google ai', 'google cloud', 'vertex ai', 'google vids', 'google workspace ai'],\n  'OpenAI': ['gpt-4', 'gpt-5', 'chatgpt', 'codex', 'dall-e', 'openai'],\n  'Anthropic': ['claude', 'anthropic'],\n  'NVIDIA': ['blackwell', 'hopper', 'tensorrt', 'cuda', 'nvidia'],\n  'Meta': ['llama', 'meta ai'],\n  'Microsoft': ['azure ai', 'copilot', 'phi-'],\n  'Mistral': ['mistral', 'mixtral'],\n  'AWS': ['bedrock', 'sagemaker'],\n};\n\nfunction getVendorFromTitle(title) {\n  const lower = (title || '').toLowerCase();\n  for (const [vendor, products] of Object.entries(VENDOR_PRODUCTS)) {\n    if (products.some(p => lower.includes(p))) return vendor;\n  }\n  return null;\n}\n\n// \u2500\u2500 PARSE SIGNAL CARDS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nconst lines = (signal_cards || '').split('\\n').filter(l => l.trim());\nconst parsed = [];\nfor (const line of lines) {\n  // Format: [signal_id] [TYPE:domain] title | description (score:N) (pub:DATE)\n  const m = line.match(/^\\[([^\\]]+)\\]\\s*\\[([^\\]]+)\\]\\s*(.+?)\\s*(?:\\(score:|$)/);\n  if (!m) continue;\n  const signal_id = m[1];\n  const domainStr = m[2];\n  const title = m[3].split('|')[0].trim();\n  const vendor = getVendor(domainStr);\n  const scoreMatch = line.match(/\\(score:(\\d+)\\)/);\n  const score = scoreMatch ? parseInt(scoreMatch[1]) : 50;\n  parsed.push({ signal_id, title, domainStr, vendor, score });\n}\n\n// \u2500\u2500 STEP 1: VENDOR GROUPING \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nconst vendorGroups = {};\nconst nonVendorSignals = [];\n\nfor (const s of parsed) {\n  if (s.vendor) {\n    if (!vendorGroups[s.vendor]) vendorGroups[s.vendor] = [];\n    vendorGroups[s.vendor].push(s);\n  } else {\n    nonVendorSignals.push(s);\n  }\n}\n\nconst clusters = [];\n\n// Vendor clusters \u2014 1 cluster per vendor, all signals included\nfor (const [vendor, sigs] of Object.entries(vendorGroups)) {\n  const topSig = sigs.sort((a,b) => b.score - a.score)[0];\n  clusters.push({\n    cluster_id: `vendor-${vendor.toLowerCase().replace(/\\s/g,'-')}`,\n    working_title: `${vendor} \u2014 ${topSig.title.substring(0, 60)}`,\n    signal_ids: sigs.map(s => s.signal_id),\n    signal_count: sigs.length,\n    cluster_type: 'vendor',\n    top_signal_title: topSig.title,\n    max_score: topSig.score\n  });\n}\n\nconst usedIds = new Set();\n\n// \u2500\u2500 STEP 1.5: CATEGORY-BASED CLUSTERING for trend signals \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n// Trend signals from the same Exa query category naturally belong together\n// (e.g., all agents_trend signals discuss agentic AI patterns)\n// Group them by category BEFORE keyword clustering to ensure trends survive\nconst TREND_CATEGORIES = new Set(['agents_trend', 'enterprise_trend', 'infra_trend', 'engineering_trend', 'oss_trend', 'safety_trend', 'business_trend', 'newsletter', 'newsletter_media']);\n\nconst categoryGroups = {};\nconst nonTrendNonVendor = [];\n\nfor (const s of nonVendorSignals) {\n  const cat = s.domainStr.split(':')[0].toLowerCase();\n  // Check if the signal's source_type (embedded in domainStr as TYPE:hostname) is a trend category\n  const signalData = (top_signals || []).find(ts => ts.signal_id === s.signal_id);\n  const sourceType = signalData?.source_type || '';\n  \n  if (TREND_CATEGORIES.has(sourceType) && !usedIds.has(s.signal_id)) {\n    if (!categoryGroups[sourceType]) categoryGroups[sourceType] = [];\n    categoryGroups[sourceType].push(s);\n  } else {\n    nonTrendNonVendor.push(s);\n  }\n}\n\n// Create clusters from category groups (\u22652 signals per category)\nfor (const [cat, sigs] of Object.entries(categoryGroups)) {\n  if (sigs.length < 2) {\n    nonTrendNonVendor.push(...sigs); // Fall back to keyword clustering\n    continue;\n  }\n  sigs.forEach(s => usedIds.add(s.signal_id));\n  const topSig = sigs.sort((a,b) => b.score - a.score)[0];\n  const catLabel = cat.replace(/_/g, ' ').replace(/trend/g, '').trim();\n  clusters.push({\n    cluster_id: `trend-${cat}`,\n    working_title: `${catLabel.charAt(0).toUpperCase() + catLabel.slice(1)} ecosystem trends \u2014 ${topSig.title.substring(0, 50)}`,\n    signal_ids: sigs.map(s => s.signal_id),\n    signal_count: sigs.length,\n    cluster_type: 'trend',\n    top_signal_title: topSig.title,\n    max_score: topSig.score\n  });\n}\n\nconsole.log(`Category-based trend clusters: ${Object.keys(categoryGroups).length} categories \u2192 ${clusters.filter(c=>c.cluster_type==='trend').length} trend clusters`);\n\n// \u2500\u2500 STEP 2: KEYWORD GROUPING for non-vendor, non-trend signals \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nconst STOP = new Set(['the','a','an','in','on','at','for','of','to','and','or','is','are','was','were','be','been','being','with','by','from','as','into','through','during','new','use','using','used','based','this','that','its','their','it','how','what','which','when','where','who','why','can','will','would','could','should','may','might','must','shall','have','has','had','do','does','did','not','no','more','most','some','any','all','each','other','than','then','so','but','if','while','after','before','about','over','under','out','up','down','off','again','further','both','own','same','such','only','also','just','now','even','well','back','way','because','get','make','go','look','know','need','want','give','take','come','become','including','without','across','within','between','among','per','via','vs','release','releases','released','update','updates','updated','launch','launches','launched','open','source','week','today','best','large','language','based']);\n// NOTE: Removed from STOP list to allow trend clustering: model, models, system, systems,\n// framework, frameworks, tool, tools, platform, platforms, data, result, results, paper,\n// papers, report, reports, analysis, approach, solution, method \u2014 these are meaningful\n// topic keywords that help trend signals cluster together.\n\nconst kwIndex = {};\nfor (const s of nonTrendNonVendor) {\n  const words = s.title.toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').split(/\\s+/)\n    .filter(w => w.length > 3 && !STOP.has(w) && !/^\\d+$/.test(w));\n  for (const kw of words) {\n    if (!kwIndex[kw]) kwIndex[kw] = [];\n    kwIndex[kw].push(s);\n  }\n}\n\n// Group keyword clusters \u2014 include keywords with \u22652 signals\nconst kwClusters = Object.entries(kwIndex)\n  .filter(([, sigs]) => sigs.length >= 2)\n  .sort(([, a], [, b]) => b.length - a.length)\n  .slice(0, 20);\n\nfor (const [kw, sigs] of kwClusters) {\n  const unique = sigs.filter(s => !usedIds.has(s.signal_id));\n  if (unique.length < 2) continue;\n\n  // TOPICAL COHERENCE CHECK: signals in a keyword cluster must share \u22652 keywords\n  // (not just the cluster keyword) to avoid over-broad bundling of unrelated repos\n  const sigKeywords = unique.map(s => {\n    return new Set(s.title.toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').split(/\\s+/)\n      .filter(w => w.length > 3 && !STOP.has(w) && !/^\\d+$/.test(w)));\n  });\n  // Check pairwise overlap: at least 50% of signal pairs must share \u22652 keywords\n  let coherentPairs = 0, totalPairs = 0;\n  for (let i = 0; i < sigKeywords.length; i++) {\n    for (let j = i + 1; j < sigKeywords.length; j++) {\n      totalPairs++;\n      const overlap = [...sigKeywords[i]].filter(w => sigKeywords[j].has(w)).length;\n      if (overlap >= 2) coherentPairs++;\n    }\n  }\n  const coherenceRatio = totalPairs > 0 ? coherentPairs / totalPairs : 0;\n  if (coherenceRatio < 0.2) {\n    console.log(`Cluster kw-${kw}: dropped (coherence ${(coherenceRatio*100).toFixed(0)}% < 20%)`);\n    continue;\n  }\n\n  unique.forEach(s => usedIds.add(s.signal_id));\n  const topSig = unique.sort((a,b) => b.score - a.score)[0];\n  clusters.push({\n    cluster_id: `kw-${kw}`,\n    working_title: `${kw.charAt(0).toUpperCase() + kw.slice(1)} \u2014 ${topSig.title.substring(0, 50)}`,\n    signal_ids: unique.map(s => s.signal_id),\n    signal_count: unique.length,\n    cluster_type: 'keyword',\n    top_signal_title: topSig.title,\n    max_score: topSig.score\n  });\n}\n\n// \u2500\u2500 STEP 3: SINGLETON FALLBACK \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n// High-scoring non-vendor signals that didn't land in any keyword cluster\nconst highValueSingletons = nonVendorSignals\n  .filter(s => !usedIds.has(s.signal_id) && s.score >= 65)\n  .sort((a,b) => b.score - a.score)\n  .slice(0, 5);\n\nfor (const s of highValueSingletons) {\n  clusters.push({\n    cluster_id: `single-${s.signal_id.substring(0,8)}`,\n    working_title: s.title.substring(0, 80),\n    signal_ids: [s.signal_id],\n    signal_count: 1,\n    cluster_type: 'singleton',\n    top_signal_title: s.title,\n    max_score: s.score\n  });\n}\n\n// \u2500\u2500 STEP 4: MERGE GITHUB RELEASE SINGLETONS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n// Single-signal GitHub releases flood theme slots. Merge them into one \"roundup\" cluster.\n// Only major releases (from repos with >5000 stars in content) stay standalone.\n// Identify ALL GitHub release clusters (singletons, keyword singles, or any cluster\n// where ALL signals are from github.com with release-like titles)\nfunction isGithubRelease(cluster) {\n  if (!cluster.top_signal_title) return false;\n  const title = cluster.top_signal_title;\n  const isRelease = title.includes('github.com') || title.startsWith('RELEASE:') || \n    title.startsWith('NEW:') || /releases? v?\\d/i.test(title) || /v\\d+\\.\\d+/i.test(title);\n  // For multi-signal clusters, only merge if ALL signals are GitHub releases\n  if (cluster.signal_count > 1 && cluster.cluster_type === 'keyword') {\n    const allGithub = cluster.signal_ids.every(id => {\n      const sig = parsed.find(p => p.signal_id === id);\n      return sig && (sig.domainStr.includes('github.com') || /releases? v?\\d/i.test(sig.title) || /v\\d+\\.\\d+/i.test(sig.title));\n    });\n    return allGithub;\n  }\n  return isRelease && cluster.signal_count <= 2;\n}\nconst allGithubSingles = clusters.filter(c => \n  (c.cluster_type === 'singleton' || c.cluster_type === 'keyword') && isGithubRelease(c)\n);\n\nif (allGithubSingles.length >= 2) {\n  // Remove individual singletons from clusters\n  const singleIds = new Set(allGithubSingles.map(c => c.cluster_id));\n  const filtered = clusters.filter(c => !singleIds.has(c.cluster_id));\n  \n  // Create merged roundup cluster\n  const mergedIds = allGithubSingles.flatMap(c => c.signal_ids);\n  const topSig = allGithubSingles.sort((a, b) => b.max_score - a.max_score)[0];\n  filtered.push({\n    cluster_id: 'roundup-github-releases',\n    working_title: `AI Framework Release Roundup \u2014 ${allGithubSingles.length} releases this week`,\n    signal_ids: mergedIds,\n    signal_count: mergedIds.length,\n    cluster_type: 'roundup',\n    top_signal_title: topSig.top_signal_title,\n    max_score: topSig.max_score\n  });\n  \n  console.log(`Merged ${allGithubSingles.length} GitHub release singletons into 1 roundup cluster`);\n  clusters.length = 0;\n  clusters.push(...filtered);\n}\n\n// Sort: vendor first, then keyword by signal count, then singletons\nclusters.sort((a, b) => {\n  const typeOrder = { vendor: 0, keyword: 1, singleton: 2 };\n  if (typeOrder[a.cluster_type] !== typeOrder[b.cluster_type])\n    return typeOrder[a.cluster_type] - typeOrder[b.cluster_type];\n  return b.signal_count - a.signal_count;\n});\n\nconst signal_clusters = JSON.stringify({ clusters }, null, 2);\nconst signal_card_titles = (top_signals || []).map(s => `[${s.signal_id}] ${s.title}`).join('\\n');\n\nconsole.log(`Signal Cluster Builder: ${parsed.length} signals \u2192 ${Object.keys(vendorGroups).length} vendor clusters + ${clusters.filter(c=>c.cluster_type==='keyword').length} keyword clusters + ${clusters.filter(c=>c.cluster_type==='singleton').length} singletons = ${clusters.length} total`);\n\nreturn [{ json: { ...rest, signal_cards, top_signals, signal_clusters, signal_card_titles } }];"
+      },
+      "id": "signal-cluster-builder",
+      "name": "Signal Cluster Builder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        100
+      ],
+      "notes": "STEP 7b: Pre-computes keyword \u2192 signal_id clusters before Theme Selector. Groups signals by shared title keywords. Outputs signal_clusters + signal_card_titles."
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo",
+        "options": {
+          "maxTokens": 4000,
+          "temperature": 0.2
+        }
+      },
+      "id": "theme-selector-model",
+      "name": "Theme Selector Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        2060,
+        320
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ud6lfu4FVZ8L1pYz",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=CLUSTER DATA (pre-built groups \u2014 each cluster already has its signal_ids grouped):\n{{ $json.signal_clusters }}\n\n=SIGNAL CARD TITLES (for working_title inspiration only \u2014 do NOT invent IDs from this list):\n{{ $json.signal_card_titles }}\n\nSelect exactly 8 clusters from CLUSTER DATA. Follow your system prompt instructions. Return JSON only.",
+        "options": {
+          "systemMessage": "<Role>\nYou are a cluster selection specialist for CalmFalcon's AI signal intelligence pipeline. You receive pre-computed keyword\u2192signal_id clusters and select exactly 8 to develop into intelligence themes for AI Platform PMs and Engineering Leads at Series B+ companies ($50M+ revenue).\n</Role>\n\n<Instruction>\nYour ONLY job: read the signal clusters provided and select exactly 8 to pass to the Theme Writer. You do not write themes \u2014 you select and, where necessary, merge clusters so that downstream theme generation produces the highest-quality, most timely intelligence possible.\n</Instruction>\n\n<Task>\nFollow these steps in order before writing output:\n\nStep 1 \u2014 GROUP BY VENDOR AND TOPIC\nFirst group all clusters by vendor/company (NVIDIA, OpenAI, Anthropic, Google, Meta, Mistral, etc.).\nThen group by primary topic keyword (e.g. \"LLM evaluation\", \"RAG\", \"autonomous agents\", \"MLOps\"). If 2+ clusters share the same primary topic keyword \u2014 regardless of vendor \u2014 merge them into one cluster using the most specific working_title and combining all signal_ids. Never carry duplicate topics into the final 8.\n\nStep 2 \u2014 DEDUPLICATE VENDORS\nIf any vendor has more than 1 cluster remaining after Step 1, merge them: combine their signal_ids and use the most specific working_title. Never output 2 clusters from the same vendor.\nSUBDOMAIN RULE: Subdomains of the same company are the same vendor \u2014 always merge them.\n  investor.nvidia.com + blogs.nvidia.com + developer.nvidia.com \u2192 all NVIDIA \u2192 one cluster\n  help.openai.com + platform.openai.com + openai.com \u2192 all OpenAI \u2192 one cluster\n  cloud.google.com + ai.google.dev + deepmind.com + blog.google \u2192 all Google \u2192 one cluster\n  docs.anthropic.com + console.anthropic.com + anthropic.com \u2192 all Anthropic \u2192 one cluster\nDo not treat investor.*, newsroom.*, or developer.* subdomains as separate vendors from the parent company.\n\nStep 3 \u2014 SCORE BY SPECIFICITY\n- SCORE HIGH (prefer these first): cluster has \u22651 signal title containing a specific product name, version number, or announcement verb (Launches, Releases, Ships, Introduces, Announces, Hits GA, Extends, Cuts, Adds, Upgrades). These are event-anchored clusters with a clear this-week hook.\n  TIE-BREAK within HIGH: prefer the cluster whose signal title contains a proper noun (company or product name) over one containing only a category noun.\n- SCORE MEDIUM: cluster has signals from official vendor domains (openai.com, anthropic.com, nvidia.com, google.com, etc.) describing a specific named technology, even without a version number.\n- SCORE LOW (include only if needed to reach 8): cluster title is a pure category description (e.g. \"AI agent frameworks\", \"RAG technology\", \"LLM evaluation\") where ALL signal titles are also generic category descriptions with no specific named product. Set topic_anchor to \"evergreen category \u2014 no specific this-week event\" so Theme Writer knows to use hedged language.\n  TIE-BREAK within LOW: prefer the cluster with the most signals and the most varied source domains.\n\nStep 3.5 \u2014 ENTERPRISE AI RELEVANCE GATE\nBefore scoring, discard any cluster that fails BOTH of these tests:\n  Test A: \"Is this specifically about AI/ML infrastructure, models, or AI-related tooling?\"\n  Test B: \"Would an AI Platform PM or Engineering Lead at a Series B+ company ($50M+ revenue) managing inference stacks, orchestration, or vendor decisions care about this?\"\n\nDISCARD if the cluster is about:\n- General developer tools with no AI-specific component (e.g., VS Code updates, Git clients, general CI/CD, IDEs, text editors, Docker releases, Kubernetes patches)\n- Consumer-only tools (chatbots for personal use, social media bots, IM integrations)\n- Academic-only research with no enterprise application\n- Niche domain-specific tools irrelevant to AI infrastructure (e.g., game bots, personal assistants)\n- Alpha/pre-release versions (e.g., v0.x-alpha, v0.x-beta, release candidates) \u2014 these are too early for enterprise action\n- Minor patch releases (e.g., v1.2.3 \u2192 v1.2.4) from tools that are not core AI infrastructure\n\nKEEP only if the tool/signal is directly about: LLMs, inference, fine-tuning, RAG, embeddings, vector databases, ML training, model serving, AI agents, AI safety, AI governance, AI compute, or AI platform infrastructure.\n\nIf discarding drops you below 8 candidates, keep the discarded cluster but set topic_anchor to \"low AI relevance \u2014 include only if needed to reach 8\".\n\nStep 4 \u2014 SELECT TOP 8 WITH BALANCED MIX\nSelect exactly 8 clusters enforcing this tier balance:\n- **MAX 3 ACT-candidates** (HIGH-scored release/launch/announcement clusters). These become ACT themes downstream.\n- **MIN 5 WATCH-candidates** (MEDIUM and LOW-scored trend, pattern, ecosystem shift, research clusters). These become WATCH themes downstream.\n\nWHY: CalmFalcon's users are AI Platform PMs and Engineering Leads. They don't just need release alerts \u2014 they need to track emerging patterns, ecosystem shifts, competitive moves, research trends, and adoption signals over 30 days. A brief with 8 releases is a changelog, not intelligence. A brief with 2-3 releases + 5-6 trend insights is actionable strategy.\n\nSELECTION ORDER:\n1. Pick the top 3 HIGH-scored clusters (releases/launches with specific product names and announcement verbs). If fewer than 3 qualify, include what you have \u2014 do not force LOW clusters into ACT slots.\n2. Fill remaining 5+ slots with the best MEDIUM and LOW clusters, prioritizing:\n   a. Ecosystem consolidation patterns (e.g., \"RAG tooling converging on graph-based approaches\")\n   b. Competitive positioning shifts (e.g., \"open-source models closing gap with proprietary APIs\")\n   c. Research-to-production signals (e.g., \"mixture-of-experts architectures entering production stacks\")\n   d. Infrastructure/cost trend signals (e.g., \"inference cost declining across major providers\")\n   e. Regulatory/safety developments\n   f. Funding/M&A activity in AI infrastructure\n3. For WATCH-candidate clusters, set topic_anchor to describe the pattern or shift, NOT a specific release. Example: topic_anchor=\"RAG ecosystem shifting toward graph-based retrieval \u2014 multiple independent projects converging\" rather than \"RAGFlow release\".\n\nANTI-RELEASE-BIAS CHECK: Before finalizing, count how many of your 8 clusters have a release/launch/announcement verb in the working_title. If more than 3 \u2192 demote the weakest release cluster (fewest signals, lowest score) and replace with the next-best trend/pattern cluster.\n\nEDGE CASES \u2014 resolve before outputting:\n- FEWER THAN 8 AFTER DEDUPLICATION: Do not output fewer than 8. In priority order: (1) Split a broad multi-topic cluster into 2 narrower clusters (e.g. \"NVIDIA hardware and MLOps\" \u2192 \"NVIDIA Blackwell GPU\" + \"NVIDIA MLOps Ecosystem\"). (2) Promote a previously excluded lower-confidence cluster to fill the gap. (3) As last resort, include clusters with only 1 signal \u2014 set topic_anchor to \"single source\" so Theme Writer knows evidence is thin.\n- ALL CLUSTERS FROM ONE VENDOR: Select at most 1 from the dominant vendor (merged per Step 2 rule), then include next-best from other vendors even if lower confidence. Diversity of vendor coverage matters.\n- SPARSE OR MISSING SIGNAL IDs: Do not invent IDs. Output the cluster with signal_ids: [] and note in topic_anchor: \"no signal IDs provided \u2014 may be filtered downstream\". Still count toward 8.\n- UNCERTAIN WHICH TO INCLUDE: Apply the this-week test \u2014 \"Could this cluster title have been written last month without changing?\" If yes, it is evergreen \u2014 deprioritize but include if needed to reach 8. Never output fewer than 8 clusters.\n</Task>\n\n<Guardrails>\n1. Output count: exactly 8 clusters \u2014 merge or split to reach 8 if needed\n2. Vendor coverage: one cluster per vendor \u2014 merge all signals from the same vendor family into one cluster (Step 2)\n3. Topic coverage: one cluster per topic \u2014 merge clusters sharing the same primary keyword (Step 1)\n4. Specificity floor: at least 4 of the 8 clusters must be HIGH or MEDIUM scored (\u22651 signal with a named product or announcement verb). Fill remaining slots with the best available LOW clusters marked evergreen.\n5. Signal ID fidelity: copy signal IDs verbatim from the cluster data \u2014 character-for-character matches only\n6. Topic distinctness: each cluster covers a different topic\n7. Output format: valid JSON only \u2014 no markdown fences, no preamble, no commentary\n8. Selection priority: HIGH clusters before MEDIUM before LOW \u2014 never sacrifice a specific cluster for a generic one\n\nOutput this exact format:\n{\n  \"selected_clusters\": [\n    {\n      \"cluster_id\": \"c001\",\n      \"working_title\": \"short descriptive label (not the final theme title)\",\n      \"signal_ids\": [\"tv-abc123\", \"gh-xyz456\"],\n      \"topic_anchor\": \"the specific product/event/release these signals share, or 'evergreen category' if none\"\n    }\n  ]\n}\n</Guardrails>\n\n<Example>\nInput clusters:\n[c001 \"NVIDIA Physical AI Models launch\", signal_ids: [\"tv-abc\", \"tv-def\"]]\n[c002 \"NVIDIA MLOps partnership with Nebius\", signal_ids: [\"tv-ghi\"]]\n[c003 \"OpenAI API pricing changes\", signal_ids: [\"tv-jkl\", \"tv-mno\"]]\n[c004 \"RAGFlow open-source RAG engine gains GitHub stars\", signal_ids: [\"gh-pqr\"]]\n[c005 \"LangGraph 0.2 hits GA\", signal_ids: [\"gh-stu\", \"tv-vwx\"]]\n[c006 \"LLM evaluation benchmarks roundup\", signal_ids: [\"rs-aaa\"]]\n[c007 \"Best practices for LLM evaluation in 2026\", signal_ids: [\"rs-bbb\"]]\n[... 3 more clusters ...]\n\nStep 1 TOPIC DEDUP: c006 and c007 both have primary keyword \"LLM evaluation\" \u2192 merge \u2192 working_title \"LLM Evaluation Benchmarks and Best Practices\", signal_ids: [\"rs-aaa\", \"rs-bbb\"], topic_anchor=\"evergreen category\".\nStep 1 VENDOR GROUP: NVIDIA appears in c001 and c002 \u2192 flag for Step 2.\nStep 2 VENDOR DEDUP: Merge c001 + c002 \u2192 working_title \"NVIDIA Physical AI Models and MLOps Partnerships\", signal_ids: [\"tv-abc\", \"tv-def\", \"tv-ghi\"].\nStep 3 SCORING:\n- HIGH: merged NVIDIA cluster (specific release + launch verb + proper noun), c005 LangGraph (version number + GA verb + proper noun), c003 OpenAI (pricing = specific named change + proper noun)\n- MEDIUM: c004 RAGFlow (specific named tool, GitHub signal)\n- LOW: merged LLM Evaluation cluster (pure category, no specific product)\nStep 4: 3 HIGH + 1 MEDIUM = 4 event-anchored \u2705. Select 8 by score.\n\nOutput:\n{\n  \"selected_clusters\": [\n    {\n      \"cluster_id\": \"c001\",\n      \"working_title\": \"NVIDIA Physical AI Models and MLOps Partnerships\",\n      \"signal_ids\": [\"tv-abc\", \"tv-def\", \"tv-ghi\"],\n      \"topic_anchor\": \"NVIDIA new Physical AI Models release + MLOps partner launches\"\n    },\n    {\n      \"cluster_id\": \"c005\",\n      \"working_title\": \"LangGraph 0.2 general availability\",\n      \"signal_ids\": [\"gh-stu\", \"tv-vwx\"],\n      \"topic_anchor\": \"LangGraph 0.2 GA release\"\n    },\n    {\n      \"cluster_id\": \"c003\",\n      \"working_title\": \"OpenAI API pricing changes\",\n      \"signal_ids\": [\"tv-jkl\", \"tv-mno\"],\n      \"topic_anchor\": \"OpenAI API pricing update this week\"\n    },\n    {\n      \"cluster_id\": \"c004\",\n      \"working_title\": \"RAGFlow OSS RAG engine traction\",\n      \"signal_ids\": [\"gh-pqr\"],\n      \"topic_anchor\": \"RAGFlow open-source RAG engine\"\n    },\n    {\n      \"cluster_id\": \"c006\",\n      \"working_title\": \"LLM Evaluation Benchmarks and Best Practices\",\n      \"signal_ids\": [\"rs-aaa\", \"rs-bbb\"],\n      \"topic_anchor\": \"evergreen category \u2014 no specific this-week event\"\n    }\n  ]\n}\n</Example>"
+        }
+      },
+      "id": "theme-selector-agent",
+      "name": "Theme Selector",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        2000,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "notes": "STEP 8a: Lightweight cluster selection. Picks EXACTLY 8 clusters (no duplicate vendors). No prose \u2014 outputs cluster titles + signal_ids only."
+    },
+    {
+      "parameters": {
+        "jsCode": "// SPLIT CLUSTERS \u2014 parses Theme Selector output, emits one item per cluster\nconst raw = $input.first().json.output || '{}';\nconst evidencePack = $('Build Evidence Pack').first().json;\nconst signalMap = {};\n(evidencePack.top_signals || []).forEach(s => { signalMap[s.signal_id] = s; });\n\nlet clusters = [];\n\n// Strategy 1: clean parse\ntry {\n  const m = raw.match(/\\{[\\s\\S]*\"selected_clusters\"[\\s\\S]*\\}/);\n  if (m) clusters = JSON.parse(m[0]).selected_clusters || [];\n  else clusters = JSON.parse(raw).selected_clusters || [];\n} catch(e) {\n  // Strategy 2: truncated JSON \u2014 extract complete cluster objects individually\n  console.log(`Split Clusters: clean parse failed (${e.message}) \u2014 attempting partial recovery`);\n  try {\n    // Find each complete cluster object {...} between the array brackets\n    const arrayMatch = raw.match(/\"selected_clusters\"\\s*:\\s*\\[([^]*)/);\n    if (arrayMatch) {\n      const arrayContent = arrayMatch[1];\n      // Match complete objects: find balanced { } blocks\n      let depth = 0, start = -1;\n      for (let i = 0; i < arrayContent.length; i++) {\n        if (arrayContent[i] === '{') {\n          if (depth === 0) start = i;\n          depth++;\n        } else if (arrayContent[i] === '}') {\n          depth--;\n          if (depth === 0 && start !== -1) {\n            try {\n              const obj = JSON.parse(arrayContent.substring(start, i + 1));\n              if (obj.working_title || obj.cluster_id) clusters.push(obj);\n            } catch(innerE) {}\n            start = -1;\n          }\n        }\n      }\n      console.log(`Split Clusters: partial recovery found ${clusters.length} complete cluster objects`);\n    }\n  } catch(e2) {\n    throw new Error(`Split Clusters: all parse strategies failed \u2014 raw: ${raw.substring(0, 400)}`);\n  }\n}\n\nif (clusters.length < 3) {\n  throw new Error(`Split Clusters: only ${clusters.length} clusters found \u2014 Theme Selector output: ${raw.substring(0, 400)}`);\n}\n\nconsole.log(`Split Clusters: emitting ${clusters.length} clusters for Theme Writer`);\n\nreturn clusters.map((cluster, idx) => {\n  const ids = cluster.signal_ids || [];\n  const cards = ids\n    .filter(id => signalMap[id])\n    .map(id => {\n      const s = signalMap[id];\n      return `[${s.signal_id}] ${s.title} | ${s.source_url} | pub:${s.published_at || 'unknown'} | cat:${s.source_name}`;\n    })\n    .join('\\n');\n\n  // Fallback: if no cluster_cards matched by ID, search signalMap by keyword from working_title\n  let finalCards = cards;\n  let finalIds = ids;\n  if (!cards) {\n    const keywords = (cluster.working_title || '').toLowerCase().split(/\\s+/)\n      .filter(w => w.length > 3 && !['with','from','and','the','for','into','that','this','using'].includes(w));\n    const fallbackSignals = Object.values(signalMap).filter(s => {\n      const title = (s.title || '').toLowerCase();\n      return keywords.some(kw => title.includes(kw));\n    }).slice(0, 5);\n    if (fallbackSignals.length > 0) {\n      finalIds = fallbackSignals.map(s => s.signal_id);\n      finalCards = fallbackSignals.map(s =>\n        `[${s.signal_id}] ${s.title} | ${s.source_url} | pub:${s.published_at || 'unknown'} | cat:${s.source_name}`\n      ).join('\\n');\n      console.log(`Split Clusters [${cluster.working_title}]: ID mismatch \u2014 keyword fallback found ${fallbackSignals.length} signals`);\n    } else {\n      finalCards = '(no matching signal cards \u2014 IDs may not match signal map and keyword fallback found nothing)';\n      console.log(`Split Clusters [${cluster.working_title}]: WARNING \u2014 no signal cards found via ID or keyword`);\n    }\n  }\n\n  return {\n    json: {\n      cluster_index:   idx + 1,\n      cluster_id:      cluster.cluster_id || `c${String(idx+1).padStart(3,'0')}`,\n      working_title:   cluster.working_title || `Cluster ${idx+1}`,\n      topic_anchor:    cluster.topic_anchor || '',\n      signal_ids:      finalIds,\n      cluster_cards:   finalCards,\n      week_number:     evidencePack.week_number,\n      year:            evidencePack.year,\n      pipeline_run_id: evidencePack.pipeline_run_id,\n      total_ingested:  evidencePack.total_ingested,\n    }\n  };\n});",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "split-clusters-code",
+      "name": "Split Clusters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        100
+      ],
+      "notes": "STEP 8b: Splits selected_clusters array into 8 individual n8n items. Enriches each with signal cards for its cluster. Theme Writer processes each item independently."
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo",
+        "options": {
+          "maxTokens": 2000,
+          "temperature": 0.3
+        }
+      },
+      "id": "theme-writer-model",
+      "name": "Theme Writer Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        2500,
+        320
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Ud6lfu4FVZ8L1pYz",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=CLUSTER {{ $json.cluster_index }}: {{ $json.working_title }}\nTOPIC ANCHOR: {{ $json.topic_anchor }}\n\n=SIGNAL CARDS FOR THIS CLUSTER:\n{{ $json.cluster_cards }}\n\nWrite one complete theme JSON object for this cluster. Use only signal IDs that appear verbatim in the cards above.",
+        "options": {
+          "systemMessage": "<Role>\nYou are a theme writer for CalmFalcon's AI signal intelligence platform. Your readers are AI Platform PMs and Engineering Leads at Series B+ companies ($50M+ revenue) who make real infrastructure and vendor decisions. A hallucinated product name, inflated tier, or false date claim destroys their credibility with leadership teams immediately.\n</Role>\n\n<Instruction>\nYou will receive ONE signal cluster. Write ONE complete theme JSON object. Everything you write must be grounded in the signal cards provided \u2014 never invent product names, version numbers, benchmark scores, dates, or URLs not present in the cards.\n</Instruction>\n\n<Task>\nComplete these steps in order before producing any JSON:\n\nSTEP 1 \u2014 SCAN SIGNAL CARDS\nRead every signal card title in the cluster. Note: vendor domains, publication dates (pub:YYYY-MM-DD or pub:unknown), specific product/version names mentioned verbatim, and total signal count.\n\nSTEP 2 \u2014 ANTI-HALLUCINATION CHECK (mandatory)\nRule: Use only what appears verbatim in a signal card title or description.\n- Product/version names: copy exactly from a card title. If no card says \"GPT-5.4\", write \"OpenAI API\" \u2014 not \"GPT-5.4\".\n- Capabilities: write only what the signal card title states. If the card says \"Introducing Claude Opus 4.5\", write that. If it only gives a URL and product name, write the name \u2014 nothing about what it \"likely\" does.\n- Checklist before continuing:\n  \u25a1 Every product name in my draft appears verbatim in a card title \u2192 \u2705\n  \u25a1 No capability claim uses \"likely\", \"may include\", \"expected to\", \"probably contains\", \"could feature\" \u2192 \u2705\n  \u25a1 If a claim fails either check \u2192 delete it and replace with what the card actually says.\n\nSTEP 3 \u2014 PUBLICATION DATE CHECK (mandatory before writing summary)\nEach signal card shows a pub date as (pub:YYYY-MM-DD) or (pub:unknown).\n- pub:YYYY-MM-DD \u2192 article published on that date. Only claim \"this week\" if date is within 7 days of the pipeline run.\n- pub:unknown \u2192 Tavily could NOT detect the article's pub date. The article may be days, months, or YEARS old. MUST NOT claim it was published, launched, or announced this week. Treat as context-only evidence.\n\u274c BANNED: \"Google Cloud launched Vertex AI this week\" when signal has pub:unknown\n\u274c BANNED: \"This week, GitHub repositories have highlighted advancements\" \u2014 trending repos are not new releases. GitHub pub dates reflect crawl date, not release date.\n\u2705 CORRECT: \"Google Cloud's Vertex AI platform offers unified MLOps workflows\" (no time claim)\n\u2705 CORRECT: \"mem0 and LangGraph are active open-source projects gaining traction in agent memory architecture.\" (no this-week claim)\nNever use: \"this week\", \"recently\", \"announced this week\", \"launched this week\" unless a pub:YYYY-MM-DD date within 7 days appears explicitly in the signal card.\n\nSTEP 4 \u2014 DETERMINE SIGNAL TIER (run D-1 first, stop when matched)\nD-1 VENDOR CHECK: Do \u22652 signal card titles describe a specific named release/announcement (not a general docs or overview page) AND come from official vendor domains (openai.com, anthropic.com, google.com, meta.com, microsoft.com, mistral.ai, huggingface.co, nvidia.com, investor.nvidia.com, aws.amazon.com, cloud.google.com, azure.microsoft.com)? If YES \u2192 ACT. Stop here.\n\u2705 ACT EXAMPLE: investor.nvidia.com \"NVIDIA Releases New Physical AI Models\" + nvidia.com vendor signal = 2 vendor signals + specific release = ACT.\n\u2705 ACT EXAMPLE: anthropic.com \"Introducing Claude Opus 4.5\" + docs.anthropic.com Opus release note = 2 vendor signals + specific named model = ACT.\nD-2 DEFAULT: Everything else \u2192 WATCH. Single source, general trend, non-vendor source, or no specific named event \u2192 WATCH.\n\nSTEP 5 \u2014 SCORE CONFIDENCE (start at 50, apply ONE band)\n- 85\u201395%: \u22653 signals from official vendor domains, all pub this week, describing a specific named release\n- 75\u201384%: 2 credible independent sources, specific named event this week, corroborating evidence\n- 65\u201374%: 1\u20132 credible sources, specific event identifiable but not fully corroborated. ALSO: 3+ GitHub signals all from today's pub date.\n- 55\u201364%: single credible source or general trend with no specific this-week trigger. ALSO: 2 signals from same domain type only.\n- Below 55%: weak evidence only \u2014 single blog or social signal\n\nCONCRETE EXAMPLES (use these to calibrate):\n\u2705 7 signals from mixed sources (enterprise + research + GitHub) \u2192 78%\n\u2705 3 GitHub signals (pub:today) for an active OSS project \u2192 67%\n\u2705 2 signals from same domain type (both GitHub, both research) \u2192 62%\n\u2705 1 vendor press release (pub:unknown) \u2192 58%\n\u2705 1 help article (pub:unknown) \u2192 55%\n\nDO NOT assign the same score to every theme. The spread across all themes you produce in a run must be at least 20 points. Calibrate to the evidence you actually have \u2014 more signals from more diverse source types = higher score.\n\nSTEP 6 \u2014 WRITE TITLE (\u22648 words)\nFormat: [Action verb] + [Specific named product or vendor]. The title names an event, not a category.\nGood verbs to use: Launches, Releases, Ships, Introduces, Extends, Hits GA, Upgrades, Cuts, Adds, Enables, Announces, Debuts, Publishes.\nGood title pattern: \"[Vendor] [verb] [specific product/feature]\" \u2014 e.g. \"Anthropic Releases Claude Opus 4.5\", \"NVIDIA Extends Fleet Command to MLOps Partners\".\nBanned as title starters (describe categories, not events): \"Rise of\", \"Future of\", \"Era of\", \"Advances in\", \"Advancements in\", \"Enhancements in\", \"Enhances\", \"Enhancing\", \"Expanding\", \"Exploring\", \"Evolving\", \"Evolution\", \"Landscape\", \"Trends\", \"Solutions\", \"Implications\", \"Driving\", \"Shaping\", \"Transforming\".\n\nTITLE SELF-CHECK (mandatory before finalizing): Does the title contain any of the banned patterns above?\n- YES \u2192 STOP. Rewrite using the most specific organization or project name from the signal cards. If no named product exists, use the primary domain name as the anchor noun (e.g. \"RAGFlow\", \"Domino Data Lab\", \"mem0\") + a descriptive verb (Gains Traction, Adds Features, Releases Update).\n- NO \u2192 proceed.\n\nSTEP 7 \u2014 WRITE SUMMARY (4\u20135 sentences, 80\u2013120 words)\n- Sentence 1: What specifically changed or was released \u2014 name the product, version, vendor\n- Sentence 2: Why this week \u2014 what triggered it now (only write this if pub dates support it \u2014 see STEP 3)\n- Sentence 3: Technical detail or scale signal (number, benchmark, adoption metric)\n- Sentence 4: Ecosystem impact \u2014 upstream/downstream effects on tools, vendors, workflows\n- Sentence 5: Risk, tension, or open question for enterprise teams\nEvery factual claim must be directly supported by a signal card title or description. If a number or date does not appear in the cards, do not write it.\n\nSTEP 8 \u2014 WRITE why_it_matters (2\u20133 sentences)\nName: (1) specific persona (AI Platform PM or Engineering Lead), (2) specific implication (cost, latency, vendor lock-in, architecture decision), (3) urgency (this week / this quarter / slow burn).\n\nSTEP 9 \u2014 WRITE what_you_can_do (2\u20133 numbered steps)\nEach step: [specific tool or vendor] + [specific action verb] + [measurable outcome]. Achievable within 5 business days.\nNever use: \"monitor\", \"watch\", \"stay informed\", \"consider exploring\", \"it may be worth\".\n\nSTEP 10 \u2014 SELECT SIGNAL IDs\nInclude all IDs from the cluster cards. Only exclude an ID if its title is about a completely different company or topic (e.g. an OpenAI signal in an NVIDIA theme). When in doubt, keep it \u2014 the Verifier handles topical filtering.\n</Task>\n\n<Guardrails>\n1. Never invent product names, model versions, benchmark scores, or URLs not present in the signal cards\n2. If signal cards are sparse (fewer than 2 signals or signals are ambiguous), use hedged language: \"Early signals suggest...\" rather than stating as established fact. Set confidence_score in the 55\u201364% range.\n3. Return ONLY valid JSON \u2014 no markdown fences, no commentary\n4. Do not assign the same confidence score to every theme \u2014 calibrate to evidence quality. A run where all themes score 60\u201362% has failed calibration.\n5. Signal IDs: copy verbatim from cluster cards \u2014 never modify, abbreviate, or invent\n</Guardrails>\n\n<Example>\nInput cluster:\n[tv-abc123] [VENDOR:anthropic.com] Introducing Claude Opus 4.5 - Anthropic | Anthropic releases Claude Opus 4.5 (pub:2026-03-26)\n[tv-def456] [VENDOR:docs.anthropic.com] Claude Opus 4.5 release notes and API changelog (pub:2026-03-26)\n[gh-ghi789] [GITHUB:github.com] anthropics/anthropic-sdk \u2014 Claude Opus 4.5 integration example (pub:2026-03-26)\n\n--- ACT EXAMPLE (3 vendor signals, pub this week) ---\nIMPORTANT: Do NOT output your reasoning steps. Output ONLY the JSON object below \u2014 nothing before it, nothing after it.\n\n{\"theme_id\":\"theme-001\",\"title\":\"Anthropic Releases Claude Opus 4.5\",\"summary\":\"Anthropic released Claude Opus 4.5 this week, its latest flagship model with extended thinking and improved tool-use reliability. The release coincides with increased enterprise demand for higher reasoning accuracy on complex multi-step tasks. API changelog documentation confirms improvements in parallel tool calls and reduced hallucination rates on structured outputs. This raises the capability bar for competing proprietary model vendors and gives teams on active model evaluations a concrete benchmark target. Enterprise teams approaching model contract renewals should run direct comparisons before committing to existing agreements.\",\"signal_type\":\"ACT\",\"confidence_score\":81,\"why_it_matters\":\"AI Platform PMs evaluating model vendor contracts should factor Opus 4.5 into renewal decisions \u2014 capability differences may shift cost-per-task economics at scale. Engineering Leads can run direct benchmarks this week against their highest-volume production prompts. This is an immediate decision for any team with an active model evaluation or an OpenAI contract renewal in the next 60 days.\",\"what_you_can_do\":\"1. Run Claude Opus 4.5 via the Anthropic API against your 3 highest-volume production prompts and compare output quality and token cost to your current model baseline. 2. Pull last 30 days of inference logs and calculate per-task cost differential at Opus 4.5 pricing. 3. Share benchmark results with your vendor contact before your next contract review.\",\"supporting_signal_ids\":[\"tv-abc123\",\"tv-def456\",\"gh-ghi789\"]}\n\n--- WATCH EXAMPLE (1 GitHub signal, pub:unknown \u2014 evergreen cluster) ---\nInput cluster:\n[gh-xyz001] [GITHUB:github.com] infiniflow/ragflow \u2014 RAGFlow is a leading open-source RAG engine integrating retrieval with agent capabilities (pub:unknown)\n\nIMPORTANT: Do NOT output your reasoning steps. Output ONLY the JSON object below.\n\n{\"theme_id\":\"theme-002\",\"title\":\"RAGFlow Integrates Agent Capabilities into OSS RAG Engine\",\"summary\":\"RAGFlow, an open-source Retrieval-Augmented Generation engine, has added native agent capabilities to its retrieval pipeline, enabling more dynamic query handling within LLM applications. The project is hosted on GitHub and is actively maintained. This positions RAGFlow as a candidate for teams evaluating open-source alternatives to proprietary RAG implementations. Enterprise teams using LangChain or custom retrieval stacks should assess whether RAGFlow's approach reduces integration complexity. The main open question is production stability and enterprise support availability compared to managed RAG services.\",\"signal_type\":\"WATCH\",\"confidence_score\":57,\"why_it_matters\":\"Engineering Leads evaluating retrieval infrastructure can use RAGFlow as a benchmark against their current RAG stack \u2014 specifically on integration complexity and latency. This is a slow-burn evaluation, not an immediate decision, but worth scoping before the next architecture review.\",\"what_you_can_do\":\"1. Clone the RAGFlow repo and run it against your top 3 retrieval test cases. 2. Compare retrieval latency and accuracy against your current solution and log results in your infra evaluation tracker.\",\"supporting_signal_ids\":[\"gh-xyz001\"]}\n</Example>"
+        }
+      },
+      "id": "theme-writer-agent",
+      "name": "Theme Writer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        2440,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "notes": "STEP 8c: Writes ONE complete theme per cluster. Called 8 times (once per Split Clusters item). Applies citation self-check, ACT/WATCH D-1 rule, confidence calibration."
+    },
+    {
+      "parameters": {
+        "jsCode": "// AGGREGATE THEMES \u2014 collects all Theme Writer outputs into a single themes array\nconst items = $input.all();\nconst evidencePack = $('Build Evidence Pack').first().json;\n\nconst themes = [];\nconst parseErrors = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const raw = (items[i].json.output || '').trim();\n  let parsed = null;\n\n  // Strategy 1: brace-depth counter \u2014 find first complete JSON object containing \"theme_id\"\n  // (avoids greedy regex failure when Theme Writer outputs preamble text before JSON)\n  try {\n    const tidx = raw.indexOf('\"theme_id\"');\n    if (tidx !== -1) {\n      const open = raw.lastIndexOf('{', tidx);\n      if (open !== -1) {\n        let d = 0, end = -1;\n        for (let i = open; i < raw.length; i++) {\n          if (raw[i] === '{') d++;\n          else if (raw[i] === '}') { d--; if (d === 0) { end = i; break; } }\n        }\n        if (end !== -1) {\n          const candidate = JSON.parse(raw.substring(open, end + 1));\n          if (candidate.title || candidate.theme_id) parsed = candidate;\n        }\n      }\n    }\n  } catch(e) {}\n\n  // Strategy 2: strip markdown fences and parse full output\n  if (!parsed) {\n    try {\n      const stripped = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```\\s*$/, '').trim();\n      const candidate = JSON.parse(stripped);\n      // Accept if it looks like a theme (has title) or has a themes array\n      if (candidate.title) parsed = candidate;\n      else if (candidate.themes && candidate.themes[0]) parsed = candidate.themes[0];\n    } catch(e) {}\n  }\n\n  // Strategy 3: find first {...} block regardless of theme_id\n  if (!parsed) {\n    try {\n      const m3 = raw.match(/\\{[\\s\\S]+\\}/);\n      if (m3) {\n        const candidate = JSON.parse(m3[0]);\n        if (candidate.title || candidate.theme_id) parsed = candidate;\n      }\n    } catch(e) {}\n  }\n\n  if (parsed && (parsed.title || parsed.theme_id)) {\n    parsed.theme_id = `theme-${String(themes.length + 1).padStart(3, '0')}`;\n    themes.push(parsed);\n  } else {\n    const snippet = raw.substring(0, 200);\n    parseErrors.push(`item ${i+1}: could not parse \u2014 raw: ${snippet}`);\n    console.log(`Aggregate PARSE FAIL item ${i+1}: ${snippet}`);\n  }\n}\n\nconsole.log(`Aggregate Themes: ${items.length} Theme Writer calls \u2192 ${themes.length} valid themes | ${parseErrors.length} parse failures`);\n\n// Fail loudly if nothing was collected \u2014 silent 0 makes diagnosis impossible\nif (themes.length === 0) {\n  const sample = (items[0]?.json?.output || 'no output').substring(0, 400);\n  throw new Error(`Aggregate Themes: 0 themes collected from ${items.length} items. First item raw output: ${sample}`);\n}\n\nconst output = JSON.stringify({ themes });\n\nreturn [{\n  json: {\n    output,\n    pre_aggregate_count:   items.length,\n    collected_theme_count: themes.length,\n    parse_failures:        parseErrors.length,\n    week_number:      evidencePack.week_number,\n    year:             evidencePack.year,\n    pipeline_run_id:  evidencePack.pipeline_run_id,\n    total_ingested:   evidencePack.total_ingested,\n    source_breakdown: evidencePack.source_breakdown,\n    signal_cards:     evidencePack.signal_cards,\n    top_signals:      evidencePack.top_signals,\n    prior_themes:     evidencePack.prior_themes,\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "aggregate-themes-code",
+      "name": "Aggregate Themes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2660,
+        100
+      ],
+      "notes": "STEP 8d: Collects all 8 Theme Writer outputs \u2192 {themes:[...]} JSON string. Passes evidence pack metadata downstream."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Save Prompt Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Search Queries": {
+      "main": [
+        [
+          {
+            "node": "Fetch via Exa",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch GitHub Trending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Signals": {
+      "main": [
+        [
+          {
+            "node": "Rank & Format Top 120",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Prior Context": {
+      "main": [
+        [
+          {
+            "node": "Build Evidence Pack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Evidence Pack": {
+      "main": [
+        [
+          {
+            "node": "Signal Cluster Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verifier Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Verifier Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verifier Agent": {
+      "main": [
+        [
+          {
+            "node": "Deterministic Score + Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deterministic Score + Confidence": {
+      "main": [
+        [
+          {
+            "node": "Brief Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Brief Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Brief Writer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Brief Writer": {
+      "main": [
+        [
+          {
+            "node": "Save to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Prompt Version": {
+      "main": [
+        [
+          {
+            "node": "Build Search Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch GitHub Trending": {
+      "main": [
+        [
+          {
+            "node": "Merge Fetch Branches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Theme Logger": {
+      "main": [
+        [
+          {
+            "node": "Verifier Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Fetch Branches": {
+      "main": [
+        [
+          {
+            "node": "Process Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signal Cluster Builder": {
+      "main": [
+        [
+          {
+            "node": "Theme Selector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rank & Format Top 120": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Prior Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Theme Selector Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Theme Selector",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Theme Selector": {
+      "main": [
+        [
+          {
+            "node": "Split Clusters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Clusters": {
+      "main": [
+        [
+          {
+            "node": "Theme Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Theme Writer Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Theme Writer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Theme Writer": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Themes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Themes": {
+      "main": [
+        [
+          {
+            "node": "Theme Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch via Exa": {
+      "main": [
+        [
+          {
+            "node": "Merge Fetch Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Supabase": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "0e7eaa04-39d1-41ba-ae2a-9662dad3e5b5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b4a40aff06825395115fea7dd13e44d323c57aa8926575ab214be4610f8b1ad1"
+  },
+  "id": "L0jQ0ap6rVRyMZYm",
+  "tags": [
+    {
+      "updatedAt": "2026-03-19T04:10:27.244Z",
+      "createdAt": "2026-03-19T04:10:27.244Z",
+      "id": "3Nu7hVwoVciCIMRg",
+      "name": "v3"
+    },
+    {
+      "updatedAt": "2026-03-19T05:24:40.023Z",
+      "createdAt": "2026-03-19T05:24:40.023Z",
+      "id": "8BpewpW9w69IsTfR",
+      "name": "v5"
+    },
+    {
+      "updatedAt": "2026-03-16T01:40:44.928Z",
+      "createdAt": "2026-03-16T01:40:44.928Z",
+      "id": "Bqsp3mSKfxv1pSAV",
+      "name": "AI Signals"
+    },
+    {
+      "updatedAt": "2026-03-16T01:40:44.952Z",
+      "createdAt": "2026-03-16T01:40:44.952Z",
+      "id": "CwUdvDx5QZb0BrDn",
+      "name": "MVP"
+    },
+    {
+      "updatedAt": "2026-03-19T04:24:40.162Z",
+      "createdAt": "2026-03-19T04:24:40.162Z",
+      "id": "FfBDNNBheoX2mogM",
+      "name": "v4"
+    },
+    {
+      "updatedAt": "2026-03-18T05:54:39.429Z",
+      "createdAt": "2026-03-18T05:54:39.429Z",
+      "id": "Hd7qbTiPZlBZSDbe",
+      "name": "Fast"
+    },
+    {
+      "updatedAt": "2026-03-16T01:40:44.973Z",
+      "createdAt": "2026-03-16T01:40:44.973Z",
+      "id": "NcCRk10bbhTpB5Xw",
+      "name": "CalmFalcon"
+    },
+    {
+      "updatedAt": "2026-03-19T05:34:49.118Z",
+      "createdAt": "2026-03-19T05:34:49.118Z",
+      "id": "NsBcuRZhvwJSxYTv",
+      "name": "v6"
+    },
+    {
+      "updatedAt": "2026-03-19T04:24:40.179Z",
+      "createdAt": "2026-03-19T04:24:40.179Z",
+      "id": "VBoUT8ihE9kIqcMP",
+      "name": "Tavily"
+    },
+    {
+      "updatedAt": "2026-03-18T05:54:39.452Z",
+      "createdAt": "2026-03-18T05:54:39.452Z",
+      "id": "c8fxGW7AbCFCXndk",
+      "name": "Single Agent"
+    },
+    {
+      "updatedAt": "2026-03-19T04:10:27.210Z",
+      "createdAt": "2026-03-19T04:10:27.210Z",
+      "id": "q3gBJaSTBsXn4HvM",
+      "name": "Optimized"
+    }
+  ]
+}

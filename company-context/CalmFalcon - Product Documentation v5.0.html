@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CalmFalcon — Product Documentation</title>
+  <style>
+    :root {
+      --bg:#0f1117; --surface:#1a1d27; --surface2:#232733; --surface3:#2a2e3d;
+      --border:#2e3344; --border-light:#3d4259;
+      --text:#e4e6ed; --muted:#8b8fa3; --dim:#5c6178;
+      --accent:#1C83E1; --accent-light:#3b9ff5; --accent-bg:rgba(28,131,225,0.1); --accent-border:rgba(28,131,225,0.3);
+      --green:#22c55e; --green-bg:rgba(34,197,94,0.1);
+      --red:#ef4444; --red-bg:rgba(239,68,68,0.1);
+      --yellow:#eab308; --yellow-bg:rgba(234,179,8,0.1);
+      --orange:#f97316; --orange-bg:rgba(249,115,22,0.1);
+      --purple:#a78bfa;
+      --cyan:#22d3ee;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;font-size:18px;}
+
+    .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;}
+    .topbar h1{font-size:24px;font-weight:700;}
+    .topbar .badge{background:var(--accent);color:#fff;font-size:13px;padding:3px 10px;border-radius:10px;font-weight:600;}
+    .topbar .subtitle{color:var(--muted);font-size:16px;margin-left:auto;}
+
+    .tabs{display:flex;gap:0;background:var(--surface);border-bottom:2px solid var(--border);padding:0 32px;position:sticky;top:64px;z-index:99;}
+    .tab{padding:14px 26px;cursor:pointer;font-size:17px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.2s;}
+    .tab:hover{color:var(--text);}
+    .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+    .content{max-width:1100px;margin:0 auto;padding:32px;}
+    .tab-panel{display:none;}
+    .tab-panel.active{display:block;}
+
+    h2{font-size:26px;font-weight:700;margin:40px 0 18px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:10px;}
+    h3{font-size:20px;font-weight:600;margin:22px 0 10px;}
+    h4{font-size:15px;font-weight:600;margin:14px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+    p{margin:8px 0;font-size:17px;}
+    ul,ol{margin:10px 0 10px 26px;font-size:17px;}
+    li{margin:4px 0;}
+    blockquote{border-left:3px solid var(--accent);padding:10px 18px;margin:14px 0;background:var(--accent-bg);border-radius:0 6px 6px 0;font-size:17px;}
+
+    table{width:100%;border-collapse:collapse;margin:14px 0;font-size:16px;}
+    th{background:var(--surface2);text-align:left;padding:12px 14px;font-weight:600;border-bottom:2px solid var(--border);}
+    td{padding:10px 14px;border-bottom:1px solid var(--border);}
+    tr:hover td{background:rgba(28,131,225,0.03);}
+    .g{color:var(--green);} .r{color:var(--red);} .y{color:var(--yellow);} .o{color:var(--orange);}
+
+    code{background:var(--surface2);padding:1px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:12px;}
+    pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.5;overflow-x:auto;margin:12px 0;white-space:pre;}
+
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin:12px 0;}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0;}
+    .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;}
+    .stat .val{font-size:26px;font-weight:700;}
+    .stat .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+
+    /* Architecture-specific styles */
+    .arch-section{margin:24px 0;}
+    .arch-section h3{color:var(--text);font-size:16px;margin-bottom:12px;}
+
+    .pipeline-flow{display:flex;flex-direction:column;gap:0;margin:20px 0;}
+    .flow-stage{display:flex;align-items:stretch;gap:0;}
+    .flow-label{width:140px;flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;padding-right:16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--dim);}
+    .flow-nodes{flex:1;display:flex;flex-wrap:wrap;gap:8px;padding:12px 0;border-left:2px solid var(--border);padding-left:20px;position:relative;}
+    .flow-nodes::before{content:'';position:absolute;left:-6px;top:50%;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);}
+    .flow-connector{width:140px;flex-shrink:0;}
+    .flow-line{flex:1;border-left:2px solid var(--border);margin-left:19px;height:8px;}
+
+    .node{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid;white-space:nowrap;}
+    .node-trigger{background:rgba(34,211,238,0.1);border-color:rgba(34,211,238,0.3);color:var(--cyan);}
+    .node-code{background:var(--surface2);border-color:var(--border-light);color:var(--text);}
+    .node-llm{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent-light);}
+    .node-merge{background:rgba(167,139,250,0.1);border-color:rgba(167,139,250,0.3);color:var(--purple);}
+    .node-db{background:var(--green-bg);border-color:rgba(34,197,94,0.3);color:var(--green);}
+    .node-icon{font-size:14px;}
+
+    .split-card{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0;}
+    @media(max-width:700px){.split-card{grid-template-columns:1fr;}}
+
+    .info-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden;}
+    .info-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+    .info-card.blue::before{background:var(--accent);}
+    .info-card.green::before{background:var(--green);}
+    .info-card.yellow::before{background:var(--yellow);}
+    .info-card.red::before{background:var(--red);}
+    .info-card.purple::before{background:var(--purple);}
+    .info-card.cyan::before{background:var(--cyan);}
+    .info-card h4{margin-top:4px;}
+    .info-card p{font-size:13px;color:var(--muted);}
+    .info-card .highlight{font-size:20px;font-weight:700;margin:8px 0 4px;}
+
+    .tier-row{display:flex;gap:12px;margin:8px 0;}
+    .tier-badge{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;flex:1;border:1px solid;}
+    .tier-badge strong{display:block;font-size:14px;margin-bottom:2px;}
+    .tier-1{background:var(--red-bg);border-color:rgba(239,68,68,0.3);color:var(--red);}
+    .tier-2{background:var(--yellow-bg);border-color:rgba(234,179,8,0.3);color:var(--yellow);}
+    .tier-3{background:rgba(139,143,163,0.1);border-color:rgba(139,143,163,0.3);color:var(--muted);}
+
+    .db-table{display:inline-flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:180px;}
+    .db-table .db-header{background:var(--accent-bg);padding:8px 12px;font-weight:600;font-size:13px;color:var(--accent-light);border-bottom:1px solid var(--border);}
+    .db-table .db-field{padding:4px 12px;font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;border-bottom:1px solid var(--border);}
+    .db-table .db-field:last-child{border-bottom:none;}
+    .db-grid{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0;}
+
+    .scoring-step{display:flex;align-items:center;gap:12px;padding:8px 0;font-size:13px;}
+    .scoring-step .op{background:var(--surface2);padding:4px 10px;border-radius:6px;font-family:monospace;font-size:12px;min-width:50px;text-align:center;}
+    .scoring-step .rule{color:var(--muted);}
+    .scoring-step .val{color:var(--accent-light);font-weight:600;}
+
+    /* Theme cards */
+    .theme{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;}
+    .theme .title{font-weight:600;font-size:14px;}
+    .theme .meta{font-size:12px;color:var(--muted);}
+    .badge-act{background:var(--red-bg);color:var(--red);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+    .badge-watch{background:var(--yellow-bg);color:var(--yellow);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+    .flag{background:var(--red-bg);border-left:3px solid var(--red);padding:6px 12px;margin:4px 0;font-size:12px;border-radius:0 4px 4px 0;}
+
+    /* Setup steps */
+    .step{display:flex;gap:16px;margin:16px 0;align-items:flex-start;}
+    .step-num{background:var(--accent);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+    .step-content{flex:1;}
+    .step-content h4{margin-top:2px;text-transform:none;letter-spacing:0;color:var(--text);font-size:14px;}
+
+    hr{border:none;border-top:1px solid var(--border);margin:24px 0;}
+    .footer{text-align:center;color:var(--muted);font-size:12px;padding:24px 0;border-top:1px solid var(--border);margin-top:32px;}
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>CalmFalcon</h1>
+  <span class="badge">v5.0</span>
+  <span class="subtitle">AI Signals Intelligence Platform &mdash; April 2026</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('prd')">PRD</div>
+  <div class="tab" onclick="showTab('arch')">Architecture</div>
+  <div class="tab" onclick="showTab('eval')">Evals</div>
+  <div class="tab" onclick="showTab('setup')">Setup Guide</div>
+  <div class="tab" onclick="showTab('roadmap')">Roadmap</div>
+  <div class="tab" onclick="showTab('learnings')">Learnings</div>
+</div>
+
+<div class="content">
+
+<!-- ═══════════════════════ PRD TAB ═══════════════════════ -->
+<div id="prd" class="tab-panel active">
+
+<h2>Vision</h2>
+<p>Become the intelligent layer between enterprise AI teams and their product workflows — eliminating manual AI ecosystem research and enabling faster, evidence-backed decisions.</p>
+
+<h2>Goal</h2>
+<p>Using multi-agent AI, CalmFalcon automatically ingests signals from GitHub releases, Exa web search (vendor docs, news, newsletters, research), and trend analysis queries, clusters them into high-confidence themes, and delivers a weekly brief that enterprise AI Platform Leaders can act on.</p>
+<blockquote><strong>We aim to be the most trusted AI signal intelligence platform for enterprise platform and engineering teams.</strong></blockquote>
+
+<h2>User Personas</h2>
+<div class="split-card">
+  <div class="info-card blue">
+    <h4>Primary</h4>
+    <h3>AI Platform PM</h3>
+    <p>Series B+ &middot; $50M+ revenue &middot; Owns inference stack, orchestration, governance</p>
+    <p><strong>Pain:</strong> 15+ hrs/week reviewing signals manually</p>
+    <p><strong>Success:</strong> 10+ hrs saved/week ($9,000/mo value)</p>
+  </div>
+  <div class="info-card cyan">
+    <h4>Secondary</h4>
+    <h3>Engineering Lead / Architect</h3>
+    <p>Evaluates OSS frameworks, architecture patterns</p>
+    <p><strong>Pain:</strong> No objective criteria to rank what needs attention</p>
+    <p><strong>Need:</strong> Evidence-backed intelligence, not hype</p>
+  </div>
+</div>
+
+<h2>Problems</h2>
+<h3>Critical</h3>
+<ol>
+  <li><strong>15+ hrs/week</strong> manually reviewing newsletters, GitHub, arXiv, vendor docs</li>
+  <li><strong>Missed signals</strong> — model releases or architectural shifts slip past</li>
+  <li><strong>No consistent process</strong> — no objective confidence scoring</li>
+  <li><strong>Raw signals lack enterprise context</strong></li>
+</ol>
+<h3>Major</h3>
+<ol start="5">
+  <li>Can't share actionable summaries with leadership</li>
+  <li>WoW tracking is manual</li>
+  <li>Citation quality hard to verify at scale</li>
+</ol>
+
+<h2>Solutions</h2>
+<div class="split-card">
+  <div class="info-card blue"><h4>Ingestion</h4><p>14 Exa queries + 3-tier GitHub Trending. ~200 signals/week.</p></div>
+  <div class="info-card purple"><h4>Clustering</h4><p>Vendor dedup + trend clustering + keyword grouping + roundup merge.</p></div>
+  <div class="info-card yellow"><h4>Scoring</h4><p>0&ndash;95% confidence. Source diversity bonus. ACT/WATCH classification.</p></div>
+  <div class="info-card green"><h4>Brief</h4><p>&le;800 word brief with "Why It Matters" and "What You Can Do".</p></div>
+</div>
+
+<h2>Competitive Differentiation</h2>
+<table>
+  <thead><tr><th>Competitor</th><th>Category</th><th>CalmFalcon Advantage</th></tr></thead>
+  <tr><td>Feedly</td><td>News aggregation</td><td>Cross-source synthesis + confidence scoring</td></tr>
+  <tr><td>Exploding Topics</td><td>Trend detection</td><td>AI-specific + enterprise-framed actions</td></tr>
+  <tr><td>Rundown AI / TLDR</td><td>AI newsletters</td><td>Automated + GitHub/research + scored themes</td></tr>
+  <tr><td>Perplexity</td><td>AI search</td><td>Proactive weekly intelligence, not reactive</td></tr>
+</table>
+
+<h2>User Journey &mdash; How It Works for You</h2>
+<p style="color:var(--muted);font-size:13px;margin-bottom:16px;">Every Monday morning, CalmFalcon delivers a ready-to-read intelligence brief. Here's what your experience looks like:</p>
+<div class="pipeline-flow">
+  <div class="flow-stage">
+    <div class="flow-label" style="color:var(--accent);">Step 1</div>
+    <div class="flow-nodes"><span class="node node-trigger">Log In</span><p style="font-size:13px;color:var(--text);margin:4px 0 0 0;">Sign in with your email or Google account. You land on your personalized dashboard.</p></div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+  <div class="flow-stage">
+    <div class="flow-label" style="color:var(--accent);">Step 2</div>
+    <div class="flow-nodes"><span class="node node-llm">See This Week's Themes</span><p style="font-size:13px;color:var(--text);margin:4px 0 0 0;">Your dashboard shows 6&ndash;8 theme cards &mdash; each one is a key AI development from the past week. Every card shows a short title, whether you need to <strong>act now</strong> or <strong>keep watching</strong>, a confidence score (how strong the evidence is), and how many sources back it up.</p></div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+  <div class="flow-stage">
+    <div class="flow-label" style="color:var(--accent);">Step 3</div>
+    <div class="flow-nodes"><span class="node node-code">Filter What Matters to You</span><p style="font-size:13px;color:var(--text);margin:4px 0 0 0;">Want to focus on only the most urgent items? Filter by ACT (needs action now) or WATCH (worth tracking). You can also sort by confidence level to see the strongest signals first.</p></div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+  <div class="flow-stage">
+    <div class="flow-label" style="color:var(--accent);">Step 4</div>
+    <div class="flow-nodes"><span class="node node-llm">Dig Into a Theme</span><p style="font-size:13px;color:var(--text);margin:4px 0 0 0;">Click any card to see the full picture: a 4&ndash;5 sentence summary of what happened, <strong>"Why It Matters"</strong> for your team, <strong>"What You Can Do"</strong> with 2&ndash;3 concrete next steps, and every source cited with its URL and publication date so you can verify it yourself. If the theme appeared last week too, you'll see how it's trending.</p></div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+  <div class="flow-stage">
+    <div class="flow-label" style="color:var(--accent);">Step 5</div>
+    <div class="flow-nodes"><span class="node node-db">Download the Weekly Brief</span><p style="font-size:13px;color:var(--text);margin:4px 0 0 0;">Grab a ready-to-share brief (&le;700 words) that you can forward directly to your CTO or engineering org. It includes an executive summary, the top themes ranked by confidence, and a watch list of signals to track over the next 30 days. No rewriting needed.</p></div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+  <div class="flow-stage">
+    <div class="flow-label" style="color:var(--accent);">Step 6</div>
+    <div class="flow-nodes"><span class="node node-code">Compare Week Over Week</span><p style="font-size:13px;color:var(--text);margin:4px 0 0 0;">View past weekly briefs side by side. See which themes are new, which are continuing, and how confidence scores are changing &mdash; so you can tell if a trend is accelerating or fading before your next planning cycle.</p></div>
+  </div>
+</div>
+
+<h2>Jobs to Be Done</h2>
+<table>
+  <thead><tr><th>Job</th><th>User</th><th>When</th><th>Goal</th></tr></thead>
+  <tr><td>Surface the 6&ndash;8 most important AI signals this week</td><td>AI Platform PM</td><td>Every Monday</td><td>Replace 15 hrs manual review with 10-min read</td></tr>
+  <tr><td>Tell me if this week's signals are new or continuing</td><td>Platform PM</td><td>Brief review</td><td>Know if a trend is accelerating or plateauing</td></tr>
+  <tr><td>Show me the evidence behind each claim</td><td>Engineering Lead</td><td>Evaluating theme</td><td>Trust the theme enough to act on it</td></tr>
+  <tr><td>Give me something I can share with my CTO</td><td>Platform PM</td><td>After review</td><td>Executive-ready framing without rewriting</td></tr>
+  <tr><td>Classify whether this signal requires action now or next quarter</td><td>Both</td><td>Theme detail</td><td>Prioritize without manual triage</td></tr>
+  <tr><td>Surface ecosystem trends (governance, compute costs, adoption)</td><td>Both</td><td>Weekly review</td><td>Strategic planning beyond release tracking</td></tr>
+  <tr><td>Filter to only signals relevant to my infrastructure layer</td><td>Engineering Lead</td><td>Dashboard</td><td>Reduce noise, increase relevance</td></tr>
+</table>
+
+<h2>System Requirements</h2>
+
+<h3>Functional Requirements</h3>
+<table>
+  <thead><tr><th>#</th><th>Requirement</th><th>Priority</th><th>Status</th></tr></thead>
+  <tr><td>SR-1</td><td>Ingest &ge;200 signals/week from Exa (14 queries) + GitHub Trending (3-tier)</td><td>P0</td><td class="g">Done</td></tr>
+  <tr><td>SR-2</td><td>Cluster signals into 6&ndash;8 themes per weekly brief</td><td>P0</td><td class="g">Done</td></tr>
+  <tr><td>SR-3</td><td>Assign confidence score (0&ndash;95%) with source diversity bonus and single-signal cap</td><td>P0</td><td class="g">Done</td></tr>
+  <tr><td>SR-4</td><td>Classify each theme as ACT or WATCH with balanced mix (max 3 ACT, min 5 WATCH)</td><td>P0</td><td class="g">Done</td></tr>
+  <tr><td>SR-5</td><td>Generate "Why It Matters" and "What You Can Do" for each theme</td><td>P0</td><td class="g">Done</td></tr>
+  <tr><td>SR-6</td><td>Attach &ge;1 verified citation per theme (real, accessible URLs with published dates)</td><td>P0</td><td class="g">Done</td></tr>
+  <tr><td>SR-7</td><td>Complete pipeline (trigger &rarr; themes stored) in &le;10 minutes</td><td>P0</td><td class="g">Done</td></tr>
+  <tr><td>SR-8</td><td>Download weekly brief</td><td>P1</td><td class="g">Done</td></tr>
+  <tr><td>SR-9</td><td>Week-over-week delta tracking per theme</td><td>P1</td><td class="g">Done</td></tr>
+  <tr><td>SR-10</td><td>Source diversity: themes from &ge;4 source types per brief</td><td>P1</td><td class="g">Done</td></tr>
+  <tr><td>SR-11</td><td>Enterprise AI relevance gate &mdash; filter non-AI signals before theme generation</td><td>P1</td><td class="g">Done</td></tr>
+  <tr><td>SR-12</td><td>Vendor dedup &mdash; max 1 theme per vendor</td><td>P1</td><td class="y">Partial (regression)</td></tr>
+  <tr><td>SR-13</td><td>GitHub release roundup &mdash; merge singleton releases into 1 theme</td><td>P1</td><td class="y">Partial</td></tr>
+</table>
+
+<h3>Non-Functional Requirements</h3>
+<p style="color:var(--muted);font-size:12px;margin-bottom:8px;">Current performance against these targets is tracked in the <strong>Evals</strong> tab.</p>
+<table>
+  <thead><tr><th>#</th><th>Requirement</th><th>Beta Target</th></tr></thead>
+  <tr><td>NFR-1</td><td>Pipeline uptime</td><td>&ge;99% weekly scheduled runs</td></tr>
+  <tr><td>NFR-2</td><td>Hallucinated citations</td><td>0 per brief</td></tr>
+  <tr><td>NFR-3</td><td>End-to-end latency</td><td>&le;10 min trigger &rarr; stored</td></tr>
+  <tr><td>NFR-4</td><td>Theme HHH eval &mdash; Helpful</td><td>&ge;75%</td></tr>
+  <tr><td>NFR-5</td><td>Theme HHH eval &mdash; Honest</td><td>&ge;75%</td></tr>
+  <tr><td>NFR-6</td><td>Theme HHH eval &mdash; Harmless violations</td><td>&le;5%</td></tr>
+  <tr><td>NFR-7</td><td>Data encryption</td><td>AES-256 at rest and in transit</td></tr>
+  <tr><td>NFR-8</td><td>LLM Judge score</td><td>&ge;4.0 / 5.0</td></tr>
+</table>
+
+<h2>Metrics</h2>
+<p style="color:var(--muted);font-size:13px;margin-bottom:12px;"><strong>North Star:</strong> % Correct Themes Per Weekly Brief &mdash; themes passing all HHH checks. Directly reflects product value delivered. See <strong>Evals</strong> tab for current performance.</p>
+
+<table>
+  <thead><tr><th>Metric</th><th>Demo Day Target</th><th>Beta Target</th></tr></thead>
+  <tr><td><strong>% Correct Themes (North Star)</strong></td><td>&ge;60%</td><td>&ge;80%</td></tr>
+  <tr><td>% Helpful</td><td>&ge;60%</td><td>&ge;75%</td></tr>
+  <tr><td>% Honest</td><td>&ge;75%</td><td>&ge;75%</td></tr>
+  <tr><td>% Harmless violations</td><td>&le;5%</td><td>&le;5%</td></tr>
+  <tr><td>Hallucinated citations</td><td>0</td><td>0</td></tr>
+  <tr><td>LLM Judge score</td><td>&ge;3.5 / 5.0</td><td>&ge;4.0 / 5.0</td></tr>
+  <tr><td>Themes per brief</td><td>5&ndash;8</td><td>6&ndash;8</td></tr>
+  <tr><td>Trend themes</td><td>&mdash;</td><td>&ge;3</td></tr>
+  <tr><td>Source types</td><td>&ge;3</td><td>&ge;4</td></tr>
+  <tr><td>Automated checks</td><td>8/11</td><td>13/13</td></tr>
+  <tr><td>Confidence ceiling</td><td>&mdash;</td><td>&le;95%</td></tr>
+  <tr><td>Brief word count</td><td>&le;700</td><td>&le;800</td></tr>
+  <tr><td>Pipeline latency</td><td>&le;10 min</td><td>&le;10 min</td></tr>
+  <tr><td>Vendor dedup</td><td>&mdash;</td><td>1 per vendor</td></tr>
+</table>
+
+<h2>TAM &amp; Unit Economics</h2>
+<div class="split-card" style="grid-template-columns:1fr 1fr 1fr;">
+  <div class="info-card blue">
+    <h4>Market</h4>
+    <div class="highlight">$95&ndash;143M TAM</div>
+    <p>SAM: $21&ndash;32M &nbsp;|&nbsp; SOM Year 1: $1.2M (500 users)</p>
+  </div>
+  <div class="info-card yellow">
+    <h4>Value Delivered</h4>
+    <div class="highlight">36&times; ROI</div>
+    <p>15 hrs/week saved &times; $150/hr PM rate = <strong>$9,000/mo value</strong></p>
+    <p>Customer pays $250/mo &rarr; <strong>36&times; ROI</strong></p>
+  </div>
+  <div class="info-card green">
+    <h4>Unit Economics</h4>
+    <div class="highlight">94&ndash;99% Gross Margin</div>
+    <p>Individual: $250/mo (COGS $14.42)</p>
+    <p>Team 5+: $199/mo (COGS $8.24)</p>
+    <p>Enterprise: Custom (COGS $1.49)</p>
+  </div>
+</div>
+
+<h3>Cost Per Pipeline Run: $1.93</h3>
+<table>
+  <thead><tr><th>Component</th><th>Detail</th><th>Cost</th></tr></thead>
+  <tr><td>GPT-4 Turbo &mdash; Theme Selector</td><td>1 call &middot; ~10k in / ~2k out</td><td>$0.16</td></tr>
+  <tr><td>GPT-4 Turbo &mdash; Theme Writer &times;8</td><td>8 calls &middot; ~3k in / ~1.5k out each</td><td>$0.60</td></tr>
+  <tr><td>GPT-4 Turbo &mdash; Verifier Agent</td><td>1 call &middot; ~12k in / ~6k out</td><td>$0.30</td></tr>
+  <tr><td>GPT-4 Turbo &mdash; Brief Writer</td><td>1 call &middot; ~6k in / ~2k out</td><td>$0.12</td></tr>
+  <tr><td>GPT-4 Turbo &mdash; LLM Judge (eval)</td><td>1 call &middot; ~10k in / ~3k out</td><td>$0.19</td></tr>
+  <tr><td>Exa API</td><td>14 queries &times; $0.04</td><td>$0.56</td></tr>
+  <tr><td>GitHub API</td><td>~80 calls (free with token)</td><td>$0.00</td></tr>
+  <tr><td>Supabase REST</td><td>~3 calls (free tier)</td><td>$0.00</td></tr>
+  <tr style="border-top:2px solid var(--border);font-weight:700;"><td>TOTAL PER RUN</td><td>12 LLM + 14 Exa + ~83 API</td><td>$1.93</td></tr>
+</table>
+
+<h3>Monthly Infrastructure Costs</h3>
+<table>
+  <thead><tr><th>Service</th><th>Tier</th><th>Cost/mo</th></tr></thead>
+  <tr><td>n8n Cloud</td><td>Starter (orchestration, scheduling, 5 workflows)</td><td>~$20</td></tr>
+  <tr><td>Supabase</td><td>Free tier (PostgreSQL, REST API, 500 MB)</td><td>$0</td></tr>
+  <tr><td>GCP Hosting</td><td>Cloud Run (React frontend)</td><td>~$10</td></tr>
+  <tr><td>Domain (GoDaddy)</td><td>Custom domain (~$100/year)</td><td>~$8</td></tr>
+  <tr><td>OpenAI API</td><td>Pay-as-you-go (no subscription)</td><td>Usage only</td></tr>
+  <tr><td>Exa API</td><td>Pay-as-you-go</td><td>Usage only</td></tr>
+  <tr><td>Claude Code</td><td>Max subscription (eval scoring, PM workflows)</td><td>~$100</td></tr>
+  <tr><td style="color:var(--muted);">SME Eval Reviews</td><td style="color:var(--muted);">PM (founder) today &mdash; hire later</td><td style="color:var(--muted);">$0 <span style="font-size:11px;">(future cost)</span></td></tr>
+  <tr style="border-top:2px solid var(--border);font-weight:700;"><td>TOTAL FIXED INFRA</td><td></td><td>~$138/mo</td></tr>
+</table>
+
+<h3>Total Monthly Cost (Weekly Runs)</h3>
+<table>
+  <thead><tr><th>Component</th><th>Calculation</th><th>Cost/mo</th></tr></thead>
+  <tr><td>Pipeline runs</td><td>4 runs/mo &times; $1.93</td><td>$7.72</td></tr>
+  <tr><td>Fixed infrastructure</td><td>n8n + GCP + domain + Claude Code</td><td>$138.00</td></tr>
+  <tr style="border-top:2px solid var(--border);font-weight:700;"><td>TOTAL</td><td></td><td><strong>$145.72/mo</strong></td></tr>
+</table>
+<p style="font-size:12px;color:var(--yellow);margin-top:8px;">&#x26A0; If daily runs ship (roadmap P3): 30 runs/mo &times; $1.93 = $57.90 + $138 infra = <strong>~$196/mo</strong>. Note: Claude Code cost is shared across all PM workflows, not just pipeline runs.</p>
+
+<h3>Unit Economics by Plan</h3>
+<table>
+  <thead><tr><th></th><th>Individual ($250/mo)</th><th>Team 5 ($199/seat/mo)</th><th>Enterprise (~$500/mo)</th></tr></thead>
+  <tr><td>API cost/user/mo</td><td>$7.72</td><td>$1.54</td><td>$0.15</td></tr>
+  <tr><td>Infra/user/mo</td><td>$6.70</td><td>$6.70</td><td>$1.34</td></tr>
+  <tr><td><strong>Total COGS</strong></td><td><strong>$14.42</strong></td><td><strong>$8.24</strong></td><td><strong>$1.49</strong></td></tr>
+  <tr><td><strong>Gross margin</strong></td><td class="g"><strong>94.2%</strong></td><td class="g"><strong>95.9%</strong></td><td class="g"><strong>99.7%</strong></td></tr>
+</table>
+
+<h3>Annual Scenarios</h3>
+<table>
+  <thead><tr><th></th><th>Year 1</th><th>Year 2</th></tr></thead>
+  <tr><td>Users</td><td>500</td><td>1,500+ (ind + team + enterprise)</td></tr>
+  <tr><td>ARR</td><td><strong>$1.2M</strong></td><td><strong>$4.7M</strong></td></tr>
+  <tr><td>COGS</td><td>~$36K</td><td>~$100K</td></tr>
+  <tr><td>Gross profit</td><td class="g"><strong>$1.16M</strong></td><td class="g"><strong>~$4.6M</strong></td></tr>
+  <tr><td>Gross margin</td><td class="g">~97%</td><td class="g">~98%</td></tr>
+</table>
+
+<h2>Beta Roadmap (Q2 2026)</h2>
+<table>
+  <thead><tr><th>Priority</th><th>Item</th><th>Status</th></tr></thead>
+  <tr><td class="r">P0</td><td>Cross-category trend dedup</td><td>Not started</td></tr>
+  <tr><td class="r">P0</td><td>GitHub roundup merge robustness</td><td>Not started</td></tr>
+  <tr><td class="r">P0</td><td>Tighter enterprise AI relevance gate</td><td>Not started</td></tr>
+  <tr><td class="o">P1</td><td>Strategic AI queries (pricing, talent, budget)</td><td>Not started</td></tr>
+  <tr><td class="y">P2</td><td>Source type tags on theme cards</td><td>Not started</td></tr>
+  <tr><td class="y">P2</td><td>5 pilot users onboarded</td><td>Not started</td></tr>
+  <tr><td style="color:var(--muted)">P3</td><td>Daily runs + Slack integration</td><td>Not started</td></tr>
+</table>
+
+<h2>Risks &amp; Opportunities</h2>
+
+<h3>Risks</h3>
+<p style="color:var(--muted);font-size:12px;margin-bottom:8px;">AI-specific risks (hallucination, bias, data handling, compliance) are covered in <strong>Responsible AI</strong> below.</p>
+<table>
+  <thead><tr><th>Risk</th><th>Probability</th><th>Impact</th><th>Mitigation</th></tr></thead>
+  <tr><td>North Star stays below 80% for Beta</td><td class="o">Medium</td><td class="r">High</td><td>Fix relevance gate + trend dedup + roundup merge</td></tr>
+  <tr><td>OpenAI API outage during weekly run</td><td class="o">Medium</td><td class="o">Medium</td><td>n8n retry logic (2 retries, 5s wait); alert on failure</td></tr>
+  <tr><td>Exa API pricing/rate limit changes</td><td style="color:var(--muted)">Low</td><td class="o">Medium</td><td>Tavily as fallback; architecture supports provider swap</td></tr>
+  <tr><td>Competitor launches similar product</td><td class="o">Medium</td><td class="o">Medium</td><td>Deepen enterprise framing + accuracy moat; daily runs</td></tr>
+</table>
+
+<h3>Opportunities</h3>
+<p style="color:var(--muted);font-size:12px;margin-bottom:8px;">Items already on the <strong>Beta Roadmap</strong> (daily runs, Slack, source tags, strategic queries) are listed there.</p>
+<table>
+  <thead><tr><th>Opportunity</th><th>Upside</th><th>Timeline</th></tr></thead>
+  <tr><td>Custom source configuration</td><td>Unlocks enterprise sales; higher ACV</td><td>Q3 2026</td></tr>
+  <tr><td>Watchlist / bookmark per theme</td><td>Engagement + retention lever</td><td>Q2 2026</td></tr>
+  <tr><td>WoW acceleration alerts</td><td>"WATCH &rarr; ACT" push notifications</td><td>Q3 2026</td></tr>
+</table>
+
+<h2>Responsible AI</h2>
+
+<h3>Risk Assessment</h3>
+<table>
+  <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th><th>Current Status</th></tr></thead>
+  <tr>
+    <td>Hallucinated citations (fake URLs)</td>
+    <td class="r">High</td>
+    <td>URL format validation &middot; Exa provides real published dates &middot; Verifier Agent ID validation</td>
+    <td class="g">0 in 8 consecutive runs</td>
+  </tr>
+  <tr>
+    <td>Speculative signal presented as confirmed fact</td>
+    <td class="r">High</td>
+    <td>Date guard in Theme Writer &middot; <code>pub:unknown</code> treated as WATCH only &middot; No "launched this week" without dated source</td>
+    <td class="g">Active &mdash; enforced per theme</td>
+  </tr>
+  <tr>
+    <td>Over-confident scores with thin evidence</td>
+    <td class="o">Medium</td>
+    <td>Single-signal cap at 65% &middot; Hard ceiling at 95% &middot; Source diversity bonus rewards multi-source themes</td>
+    <td class="g">Active &mdash; max 95% enforced</td>
+  </tr>
+  <tr>
+    <td>Vendor marketing bias</td>
+    <td class="o">Medium</td>
+    <td>O4 Honest check per theme &middot; Source diversity requirement &middot; Independent news/legal/research sources weighted</td>
+    <td class="g">Active &mdash; 98% Honest score</td>
+  </tr>
+  <tr>
+    <td>Non-AI signals leaking into themes</td>
+    <td class="o">Medium</td>
+    <td>Enterprise AI relevance gate in Theme Selector &middot; Non-AI title filter in Process Signals</td>
+    <td class="y">Mostly working &mdash; occasional leaks</td>
+  </tr>
+  <tr>
+    <td>Overlapping/duplicate themes in same brief</td>
+    <td class="o">Medium</td>
+    <td>Vendor dedup (domain + title-based) &middot; Topic dedup in Theme Selector</td>
+    <td class="y">Vendor dedup fixed &mdash; trend overlap remains</td>
+  </tr>
+  <tr>
+    <td>Stale content surfaced as this-week intelligence</td>
+    <td class="o">Medium</td>
+    <td>Exa <code>startPublishedDate</code> filter (last 7 days) &middot; All citations now have dates</td>
+    <td class="g">Fixed &mdash; 0 stale since Exa migration</td>
+  </tr>
+  <tr>
+    <td>Prompt injection via ingested signal content</td>
+    <td style="color:var(--muted)">Low</td>
+    <td>Signals processed in isolated code nodes &middot; LLM prompts are static templates &middot; No user-generated input in pipeline</td>
+    <td class="g">Active</td>
+  </tr>
+  <tr>
+    <td>Unfair competitor disparagement</td>
+    <td style="color:var(--muted)">Low</td>
+    <td>A2 Harmless check per theme &middot; 0 violations across all runs</td>
+    <td class="g">0 violations</td>
+  </tr>
+</table>
+
+<h3>Transparency &amp; Accountability</h3>
+<div class="split-card" style="grid-template-columns: 1fr 1fr 1fr;">
+  <div class="info-card blue">
+    <h4>User Transparency</h4>
+    <p>Every theme shows confidence score + citation count + source type + published date. Users can independently assess evidence quality.</p>
+  </div>
+  <div class="info-card green">
+    <h4>Confidence Explainability</h4>
+    <p>Users see what drives each score: signal count, source types (vendor/news/research), and WoW continuation status. Confidence is evidence, not a black box.</p>
+  </div>
+  <div class="info-card yellow">
+    <h4>Human Oversight</h4>
+    <p>AI augments &mdash; never replaces. Platform Leaders make final decisions. Confidence scores flag uncertainty, not certainty.</p>
+  </div>
+</div>
+
+<h3>Compliance</h3>
+<table>
+  <tr><td>GDPR / CCPA</td><td class="g">Compliant</td><td>No PII in signal processing pipeline</td></tr>
+  <tr><td>Data retention</td><td class="g">Minimal</td><td>Only public signal content stored &middot; Zero-retention option planned</td></tr>
+  <tr><td>SOC 2 Type II</td><td class="y">Planned</td><td>Certification for Beta launch</td></tr>
+  <tr><td>Terms of service</td><td class="y">Planned</td><td>Drafted before Beta user onboarding</td></tr>
+</table>
+
+</div>
+
+<!-- ═══════════════════════ ARCHITECTURE TAB ═══════════════════════ -->
+<div id="arch" class="tab-panel">
+
+<h2>Tech Stack</h2>
+<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+  <div class="info-card blue"><h4>Orchestration</h4><div class="highlight" style="font-size:16px;">n8n Cloud</div><p>34 nodes &middot; hosted on n8n.io</p></div>
+  <div class="info-card blue"><h4>LLM</h4><div class="highlight" style="font-size:16px;">GPT-4 Turbo</div><p>4 agents &middot; JSON mode &middot; 128k context</p></div>
+  <div class="info-card cyan"><h4>Web Search</h4><div class="highlight" style="font-size:16px;">Exa API</div><p>14 queries &middot; date + category filters</p></div>
+  <div class="info-card purple"><h4>Code Intelligence</h4><div class="highlight" style="font-size:16px;">GitHub API v3</div><p>3-tier trending &middot; 26 AI orgs</p></div>
+  <div class="info-card green"><h4>Database</h4><div class="highlight" style="font-size:16px;">Supabase</div><p>PostgreSQL &middot; 8 tables (5 production + 3 golden set) &middot; REST API</p></div>
+  <div class="info-card yellow"><h4>Frontend</h4><div class="highlight" style="font-size:16px;">React (V0)</div><p>TypeScript &middot; GCP hosting</p></div>
+</div>
+
+<h2>Pipeline Flow</h2>
+<p style="color:var(--muted);font-size:13px;margin-bottom:16px;">Each row is a pipeline stage. Colored nodes show the type: <span class="node node-trigger" style="font-size:11px;">trigger</span> <span class="node node-code" style="font-size:11px;">code</span> <span class="node node-llm" style="font-size:11px;">LLM agent</span> <span class="node node-merge" style="font-size:11px;">merge</span> <span class="node node-db" style="font-size:11px;">database</span></p>
+
+<div class="pipeline-flow">
+  <div class="flow-stage">
+    <div class="flow-label">Trigger</div>
+    <div class="flow-nodes">
+      <span class="node node-trigger"><span class="node-icon">&#x23F0;</span> Schedule Trigger (Mon 6AM)</span>
+      <span class="node node-code">Save Prompt Version</span>
+    </div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+
+  <div class="flow-stage">
+    <div class="flow-label">Ingestion</div>
+    <div class="flow-nodes">
+      <span class="node node-code">Build Search Queries (14)</span>
+      <span class="node node-code" style="border-color:rgba(34,211,238,0.3);color:var(--cyan);">Fetch via Exa</span>
+      <span class="node node-code" style="border-color:rgba(167,139,250,0.3);color:var(--purple);">Fetch GitHub Trending</span>
+      <span class="node node-merge"><span class="node-icon">&#x2934;</span> Merge Branches</span>
+    </div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+
+  <div class="flow-stage">
+    <div class="flow-label">Processing</div>
+    <div class="flow-nodes">
+      <span class="node node-code">Process Signals (dedup + filter)</span>
+      <span class="node node-code">Rank &amp; Format Top 120</span>
+    </div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+
+  <div class="flow-stage">
+    <div class="flow-label">Context</div>
+    <div class="flow-nodes">
+      <span class="node node-code">Retrieve Prior Context</span>
+      <span class="node node-code">Build Evidence Pack</span>
+      <span class="node node-code">Signal Cluster Builder</span>
+    </div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+
+  <div class="flow-stage">
+    <div class="flow-label">AI Analysis</div>
+    <div class="flow-nodes">
+      <span class="node node-llm"><span class="node-icon">&#x1F916;</span> Theme Selector</span>
+      <span class="node node-code">Split Clusters</span>
+      <span class="node node-llm"><span class="node-icon">&#x1F916;</span> Theme Writer &times;8</span>
+      <span class="node node-code">Aggregate Themes</span>
+      <span class="node node-code">Theme Logger</span>
+    </div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+
+  <div class="flow-stage">
+    <div class="flow-label">Verification</div>
+    <div class="flow-nodes">
+      <span class="node node-llm"><span class="node-icon">&#x2705;</span> Verifier Agent (12 rules)</span>
+      <span class="node node-code">Deterministic Score + Confidence</span>
+    </div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+
+  <div class="flow-stage">
+    <div class="flow-label">Output</div>
+    <div class="flow-nodes">
+      <span class="node node-llm"><span class="node-icon">&#x1F4DD;</span> Brief Writer (&le;800 words)</span>
+      <span class="node node-db"><span class="node-icon">&#x1F4BE;</span> Save to Supabase</span>
+    </div>
+  </div>
+</div>
+
+<h2>Signal Ingestion</h2>
+
+<div class="split-card">
+  <div class="info-card cyan">
+    <h4>Exa Web Search</h4>
+    <div class="highlight" style="font-size:16px;">14 Queries</div>
+    <table style="margin:8px 0;">
+      <tr><td style="color:var(--red);font-weight:600;">3 Release</td><td>vendor, vendor_platform, opensource</td></tr>
+      <tr><td style="color:var(--yellow);font-weight:600;">7 Trend</td><td>agents, enterprise, infra, engineering, oss, safety, business</td></tr>
+      <tr><td style="color:var(--purple);font-weight:600;">2 Research</td><td>benchmarks, inference papers</td></tr>
+      <tr><td style="color:var(--green);font-weight:600;">2 Newsletter</td><td>10 newsletter + 10 media domains</td></tr>
+    </table>
+    <p>Date filter: <code>startPublishedDate</code> / <code>endPublishedDate</code> (last 7 days)</p>
+    <p>20 results per query &middot; GitHub excluded via <code>excludeDomains</code></p>
+  </div>
+  <div class="info-card purple">
+    <h4>GitHub 3-Tier Trending</h4>
+    <div class="highlight" style="font-size:16px;">Top 50 Signals</div>
+    <div style="margin:8px 0;">
+      <div class="tier-row">
+        <div class="tier-badge tier-1"><strong>Tier 1: Releases</strong>Tagged versions from 26 AI orgs (7d). Skip alpha/beta/RC.</div>
+      </div>
+      <div class="tier-row">
+        <div class="tier-badge tier-2"><strong>Tier 2: New Repos</strong>Created last 14 days with stars &gt;50.</div>
+      </div>
+      <div class="tier-row">
+        <div class="tier-badge tier-3"><strong>Tier 3: Velocity</strong>2x+ commit increase vs 4-week avg.</div>
+      </div>
+    </div>
+    <p>26 orgs: OpenAI, Anthropic, Google, Meta, NVIDIA, Microsoft, HuggingFace...</p>
+  </div>
+</div>
+
+<h2>Signal Cluster Builder</h2>
+<div class="pipeline-flow" style="gap:4px;">
+  <div class="flow-stage">
+    <div class="flow-label" style="color:var(--accent);">Step 1</div>
+    <div class="flow-nodes"><span class="node node-code">Vendor Grouping</span><p style="font-size:12px;color:var(--muted);margin:4px 0 0 0;">1 cluster per vendor family &middot; domain map + title-based product detection</p></div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+  <div class="flow-stage">
+    <div class="flow-label" style="color:var(--accent);">Step 1.5</div>
+    <div class="flow-nodes"><span class="node node-code">Trend Clustering</span><p style="font-size:12px;color:var(--muted);margin:4px 0 0 0;">Category-based grouping &middot; agents_trend, safety_trend, etc.</p></div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+  <div class="flow-stage">
+    <div class="flow-label" style="color:var(--accent);">Step 2</div>
+    <div class="flow-nodes"><span class="node node-code">Keyword Grouping</span><p style="font-size:12px;color:var(--muted);margin:4px 0 0 0;">Shared title keywords &middot; coherence threshold &ge;20% pairwise overlap</p></div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+  <div class="flow-stage">
+    <div class="flow-label" style="color:var(--accent);">Step 3</div>
+    <div class="flow-nodes"><span class="node node-code">Singleton Fallback</span><p style="font-size:12px;color:var(--muted);margin:4px 0 0 0;">High-scoring unclustered signals (score &ge;65)</p></div>
+  </div>
+  <div class="flow-stage"><div class="flow-connector"></div><div class="flow-line"></div></div>
+  <div class="flow-stage">
+    <div class="flow-label" style="color:var(--accent);">Step 4</div>
+    <div class="flow-nodes"><span class="node node-merge">GitHub Roundup Merge</span><p style="font-size:12px;color:var(--muted);margin:4px 0 0 0;">Singleton releases &rarr; 1 "AI Framework Release Roundup" cluster</p></div>
+  </div>
+</div>
+
+<h2>Theme Selection Rules</h2>
+<div class="split-card" style="grid-template-columns:1fr 1fr 1fr;">
+  <div class="info-card red"><h4>Max ACT</h4><div class="highlight">3</div><p>Releases, launches, announcements with &ge;2 vendor sources</p></div>
+  <div class="info-card yellow"><h4>Min WATCH</h4><div class="highlight">5</div><p>Trends, patterns, ecosystem shifts, research signals</p></div>
+  <div class="info-card blue"><h4>Enterprise Gate</h4><div class="highlight">AI Only</div><p>Filters non-AI tools, consumer apps, alpha releases</p></div>
+</div>
+
+<h2>Confidence Scoring</h2>
+<div class="card">
+  <div class="scoring-step"><div class="op" style="background:var(--accent-bg);color:var(--accent);">BASE</div><span class="rule">AI-assigned score from Verifier Agent</span></div>
+  <div class="scoring-step"><div class="op">+12</div><span class="rule">Source type diversity &ge;3 types</span></div>
+  <div class="scoring-step"><div class="op">+6</div><span class="rule">Source type diversity &ge;2 types</span></div>
+  <div class="scoring-step"><div class="op">+10</div><span class="rule">Signal count &ge;6</span></div>
+  <div class="scoring-step"><div class="op">+5</div><span class="rule">Signal count &ge;4</span></div>
+  <div class="scoring-step"><div class="op">+8</div><span class="rule">ACT velocity delta</span></div>
+  <div class="scoring-step"><div class="op">-5</div><span class="rule">WATCH velocity delta</span></div>
+  <hr style="margin:8px 0;">
+  <div class="scoring-step"><div class="op" style="background:var(--red-bg);color:var(--red);">CAP</div><span class="rule">Single-signal: <span class="val">max 65</span> &nbsp;|&nbsp; Hard ceiling: <span class="val">max 95</span></span></div>
+</div>
+
+<h2>Database Schema</h2>
+<div class="db-grid">
+  <div class="db-table">
+    <div class="db-header">pipeline_runs</div>
+    <div class="db-field">run_id TEXT</div>
+    <div class="db-field">week_number INT</div>
+    <div class="db-field">year INT</div>
+    <div class="db-field">total_themes INT</div>
+    <div class="db-field">total_signals INT</div>
+    <div class="db-field">avg_confidence INT</div>
+    <div class="db-field">themes_summary JSONB</div>
+    <div class="db-field">status TEXT</div>
+    <div class="db-field">prompt_version_id TEXT</div>
+  </div>
+  <div class="db-table">
+    <div class="db-header">themes</div>
+    <div class="db-field">theme_id TEXT</div>
+    <div class="db-field">title TEXT</div>
+    <div class="db-field">summary TEXT</div>
+    <div class="db-field">signal_type TEXT</div>
+    <div class="db-field">confidence_score INT</div>
+    <div class="db-field">why_it_matters TEXT</div>
+    <div class="db-field">what_you_can_do TEXT</div>
+    <div class="db-field">citations JSONB</div>
+    <div class="db-field">supporting_signal_ids JSONB</div>
+    <div class="db-field">is_continuation BOOL</div>
+    <div class="db-field">confidence_delta INT</div>
+  </div>
+  <div class="db-table">
+    <div class="db-header">weekly_briefs</div>
+    <div class="db-field">brief_id TEXT</div>
+    <div class="db-field">content TEXT</div>
+    <div class="db-field">key_takeaway TEXT</div>
+    <div class="db-field">total_themes INT</div>
+    <div class="db-field">pipeline_run_id TEXT</div>
+    <div class="db-field">pdf_url TEXT</div>
+  </div>
+  <div class="db-table">
+    <div class="db-header">eval_reports</div>
+    <div class="db-field">eval_type TEXT</div>
+    <div class="db-field">score TEXT</div>
+    <div class="db-field">overall_verdict TEXT</div>
+    <div class="db-field">report_markdown TEXT</div>
+    <div class="db-field">checks_detail JSONB</div>
+    <div class="db-field">themes_scored JSONB</div>
+    <div class="db-field">dim_averages JSONB</div>
+  </div>
+  <div class="db-table">
+    <div class="db-header">prompt_versions</div>
+    <div class="db-field">version_id TEXT</div>
+    <div class="db-field">version_label TEXT</div>
+    <div class="db-field">main_agent_prompt TEXT</div>
+    <div class="db-field">verifier_prompt TEXT</div>
+    <div class="db-field">brief_writer_prompt TEXT</div>
+  </div>
+</div>
+
+<h4 style="margin-top:24px;">Golden Set Tables (isolated from production) <span style="color:var(--yellow);font-size:11px;font-weight:400;">&#x26A0; IN PROGRESS</span></h4>
+<div class="db-grid">
+  <div class="db-table">
+    <div class="db-header" style="background:var(--yellow-bg);color:var(--yellow);">golden_set_runs</div>
+    <div class="db-field">id TEXT (PK)</div>
+    <div class="db-field">golden_set_version TEXT</div>
+    <div class="db-field">prompt_version TEXT</div>
+    <div class="db-field">run_date DATE</div>
+    <div class="db-field">signals_processed INT</div>
+    <div class="db-field">themes_produced INT</div>
+    <div class="db-field">trap_signals_excluded INT</div>
+    <div class="db-field">notes TEXT</div>
+  </div>
+  <div class="db-table">
+    <div class="db-header" style="background:var(--yellow-bg);color:var(--yellow);">golden_set_themes</div>
+    <div class="db-field">run_id TEXT (FK)</div>
+    <div class="db-field">golden_set_version TEXT</div>
+    <div class="db-field">theme_id TEXT</div>
+    <div class="db-field">title TEXT</div>
+    <div class="db-field">signal_type TEXT</div>
+    <div class="db-field">confidence_score INT</div>
+    <div class="db-field">signal_ids JSONB</div>
+    <div class="db-field">expected_tier TEXT</div>
+    <div class="db-field">tier_correct BOOL</div>
+  </div>
+  <div class="db-table">
+    <div class="db-header" style="background:var(--yellow-bg);color:var(--yellow);">golden_set_eval_scores</div>
+    <div class="db-field">run_id TEXT (FK)</div>
+    <div class="db-field">golden_set_version TEXT</div>
+    <div class="db-field">themes_produced INT</div>
+    <div class="db-field">correct_themes INT</div>
+    <div class="db-field">traps_leaked INT</div>
+    <div class="db-field">act_correct INT</div>
+    <div class="db-field">watch_correct INT</div>
+    <div class="db-field">roundup_merged BOOL</div>
+    <div class="db-field">north_star_pct NUM</div>
+  </div>
+</div>
+<p style="font-size:12px;color:var(--yellow);margin-top:8px;">&#x26A0; In progress — Save to Supabase routing being debugged. See backlog #17.</p>
+
+<h2>Eval Pipelines (3 workflows)</h2>
+<div class="split-card" style="grid-template-columns:1fr 1fr 1fr;">
+  <div class="info-card blue">
+    <h4>Automated (13 Checks)</h4>
+    <p>Theme count, required fields, ACT/WATCH mix, confidence spread, ceiling, summary length, title specificity, citations, signal IDs, actionability, brief word count, sections.</p>
+    <p style="margin-top:4px;font-size:12px;color:var(--muted);">Reads: <code>pipeline_runs</code> + <code>themes</code></p>
+    <p><code>calmfalcon-eval-automated.json</code></p>
+  </div>
+  <div class="info-card purple">
+    <h4>LLM Judge (4 Dimensions)</h4>
+    <p>Enterprise Relevance, Signal Type Accuracy, Actionability, Summary Quality. Scored 1&ndash;5 per theme by GPT-4 Turbo.</p>
+    <p style="margin-top:4px;font-size:12px;color:var(--muted);">Reads: <code>themes</code></p>
+    <p><code>calmfalcon-eval-llm-judge.json</code></p>
+  </div>
+  <div class="info-card yellow">
+    <h4>Golden Set (9 Checks) <span style="font-size:10px;font-weight:400;">&#x26A0; IN PROGRESS</span></h4>
+    <p>Theme count, ACT/WATCH mix, trap filtering (11 traps), vendor dedup, roundup merge, trend themes, confidence ceiling, expected coverage, signal IDs.</p>
+    <p style="margin-top:4px;font-size:12px;color:var(--muted);">Reads: <code>golden_set_runs</code> + <code>golden_set_themes</code></p>
+    <p><code>calmfalcon-eval-golden-set.json</code></p>
+  </div>
+</div>
+
+</div>
+
+<!-- ═══════════════════════ EVAL TAB ═══════════════════════ -->
+<div id="eval" class="tab-panel">
+
+<h2>How We Evaluate</h2>
+<p style="color:var(--muted);font-size:13px;margin-bottom:8px;">Every pipeline run is evaluated by 4 methods. Each catches different problems.</p>
+
+<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:24px;">
+  <div class="info-card red">
+    <h4>Manual HHH Review</h4>
+    <p>22 yes/no questions per theme</p>
+    <p style="font-size:11px;color:var(--muted);">Measures: quality, trust, safety</p>
+  </div>
+  <div class="info-card purple">
+    <h4>LLM Judge</h4>
+    <p>GPT-4 Turbo scores 1&ndash;5 on 4 dimensions</p>
+    <p style="font-size:11px;color:var(--muted);">Measures: relevance, accuracy, writing</p>
+  </div>
+  <div class="info-card blue">
+    <h4>Automated Checks</h4>
+    <p>13 deterministic rules (no LLM)</p>
+    <p style="font-size:11px;color:var(--muted);">Measures: structure, formatting, constraints</p>
+  </div>
+  <div class="info-card green">
+    <h4>Pipeline Health</h4>
+    <p>Operational &amp; signal quality metrics</p>
+    <p style="font-size:11px;color:var(--muted);">Measures: speed, coverage, accuracy</p>
+  </div>
+</div>
+
+<hr>
+
+<h2>Prompt Engineering Standards</h2>
+<div class="card">
+  <h4>RITGE Framework (v35 Rubric)</h4>
+  <p>All agent prompts are structured and graded against the v35 prompt engineering rubric:</p>
+  <table>
+    <thead><tr><th>Component</th><th>Purpose</th><th>Current Grade</th></tr></thead>
+    <tr><td><strong>Role</strong></td><td>Defines the agent's identity, expertise, and persona</td><td class="g">A</td></tr>
+    <tr><td><strong>Instruction</strong></td><td>Step-by-step processing logic</td><td class="g">A</td></tr>
+    <tr><td><strong>Task</strong></td><td>Specific output requirements and format</td><td class="g">A</td></tr>
+    <tr><td><strong>Guardrails</strong></td><td>Constraints, caps, banned patterns, validation rules</td><td class="g">A</td></tr>
+    <tr><td><strong>Examples</strong></td><td>Few-shot examples of correct output</td><td class="y">B</td></tr>
+  </table>
+  <p style="margin-top:8px;font-size:12px;color:var(--muted);">Reference: <code>company-context/prompt_guidelines/Prompt Grading - v35.md</code></p>
+</div>
+
+<hr>
+
+<h2>Run 40 Evals</h2>
+<p style="color:var(--muted);font-size:13px;">run-1775463704202 &nbsp;|&nbsp; Week 15/2026 &nbsp;|&nbsp; 212 signals &rarr; 8 themes &nbsp;|&nbsp; April 6, 2026</p>
+
+<div style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:700;font-size:16px;background:var(--green-bg);color:var(--green);border:1px solid rgba(34,197,94,0.3);margin:12px 0;">
+  LLM JUDGE: PUBLICATION READY (4.3/5.0) &mdash; North Star 50%
+</div>
+
+<div class="stats-grid">
+  <div class="stat"><div class="val" style="color:var(--yellow)">50%</div><div class="lbl">North Star</div></div>
+  <div class="stat"><div class="val g">88%</div><div class="lbl">Helpful</div></div>
+  <div class="stat"><div class="val g">98%</div><div class="lbl">Honest</div></div>
+  <div class="stat"><div class="val g">4.3</div><div class="lbl">LLM Judge</div></div>
+  <div class="stat"><div class="val g">0</div><div class="lbl">Hallucinations</div></div>
+  <div class="stat"><div class="val g">5</div><div class="lbl">Trend Themes</div></div>
+  <div class="stat"><div class="val g">756</div><div class="lbl">Brief Words</div></div>
+  <div class="stat"><div class="val g">212</div><div class="lbl">Signals</div></div>
+</div>
+
+<h2>Target vs Current</h2>
+<table>
+  <thead><tr><th>Metric</th><th>Current (Run 40)</th><th>Beta Target</th><th>Gap</th><th>Status</th></tr></thead>
+  <tr><td><strong>% Correct Themes (North Star)</strong></td><td><strong>50%</strong> (4/8)</td><td>&ge;80%</td><td>-30pp</td><td class="y">&#x26A0; Close to Demo Day 60%</td></tr>
+  <tr><td>% Helpful</td><td><strong>88%</strong></td><td>&ge;75%</td><td>+13pp</td><td class="g">&#x2705; Passing</td></tr>
+  <tr><td>% Honest</td><td><strong>98%</strong></td><td>&ge;75%</td><td>+23pp</td><td class="g">&#x2705; Passing</td></tr>
+  <tr><td>% Harmless violations</td><td><strong>0%</strong></td><td>&le;5%</td><td>At floor</td><td class="g">&#x2705; Passing</td></tr>
+  <tr><td>Hallucinated citations</td><td><strong>0</strong> (8 consecutive runs)</td><td>0</td><td>0</td><td class="g">&#x2705; Passing</td></tr>
+  <tr><td>LLM Judge score</td><td><strong>4.3 / 5.0 — PUBLICATION READY</strong></td><td>&ge;4.0</td><td>+0.3 above target</td><td class="g">&#x2705; Best ever</td></tr>
+  <tr><td>Themes per brief</td><td><strong>8</strong></td><td>6&ndash;8</td><td>At max</td><td class="g">&#x2705; Passing</td></tr>
+  <tr><td>Trend themes</td><td><strong>5</strong></td><td>&ge;3</td><td>+2</td><td class="g">&#x2705; Best ever</td></tr>
+  <tr><td>Source types</td><td><strong>6+</strong></td><td>&ge;4</td><td>+2</td><td class="g">&#x2705; Passing</td></tr>
+  <tr><td>Automated checks</td><td><strong>10/13</strong></td><td>13/13</td><td>-3</td><td class="y">&#x26A0; In progress</td></tr>
+  <tr><td>Confidence ceiling</td><td><strong>95%</strong></td><td>&le;95%</td><td>At target</td><td class="g">&#x2705; Passing</td></tr>
+  <tr><td>Brief word count</td><td><strong>756</strong></td><td>&le;800</td><td>44 words margin</td><td class="g">&#x2705; Passing</td></tr>
+  <tr><td>Pipeline latency</td><td><strong>~3 min</strong></td><td>&le;10 min</td><td>7 min margin</td><td class="g">&#x2705; Passing</td></tr>
+  <tr><td>Vendor dedup</td><td><strong>2 Google themes</strong></td><td>1 per vendor</td><td>Regression</td><td class="y">&#x26A0; Fix needed</td></tr>
+  <tr><td>Signal accuracy</td><td><strong>~93%</strong></td><td>&ge;85%</td><td>+8pp</td><td class="g">&#x2705; Passing</td></tr>
+</table>
+
+<h2>Per-Theme Scores</h2>
+<div class="theme" style="border-left:3px solid var(--red);"><div><div class="title">1. Google Launches Gemma 4 Model</div><div class="meta">6 signals &middot; H 8/8 &middot; O 7/7 &middot; LLM Judge: 5/5</div></div><div><span class="badge-act">ACT</span> 95%</div></div>
+<div class="theme" style="border-left:3px solid var(--yellow);"><div><div class="title">2. White House Unveils National AI Legislative Framework</div><div class="meta">4 signals &middot; H 8/8 &middot; O 7/7 &middot; LLM Judge: 5/5 &middot; Legal firms: Ropes &amp; Gray, Foley, Jones Day</div></div><div><span class="badge-watch">WATCH</span> 75%</div></div>
+<div class="theme" style="border-left:3px solid var(--yellow);"><div><div class="title">3. Enterprises Struggle with Agentic AI Scaling</div><div class="meta">14 signals &middot; H 8/8 &middot; O 7/7 &middot; LLM Judge: 4.3 &middot; KPMG, Gartner, Observer</div></div><div><span class="badge-watch">WATCH</span> 67%</div></div>
+<div class="theme" style="border-left:3px solid var(--yellow);"><div><div class="title">4. AI GPU Rental Market and Infrastructure Trends</div><div class="meta">8 signals &middot; H 7/8 &middot; O 7/7 &middot; LLM Judge: 4.5 &middot; SemiAnalysis, NVIDIA Developer</div><div class="flag">Title uses banned word "Trends"</div></div><div><span class="badge-watch">WATCH</span> 67%</div></div>
+<div class="theme" style="border-left:3px solid var(--border);"><div><div class="title">5. Substack Newsletters Highlight Diverse Trends</div><div class="meta">5 signals &middot; H 3/8 &middot; O 7/7</div><div class="flag">Not AI infrastructure &mdash; Substack platform content, not intelligence</div></div><div><span class="badge-watch">WATCH</span> 62%</div></div>
+<div class="theme" style="border-left:3px solid var(--yellow);"><div><div class="title">6. LangChain Releases langchain@1.3.0</div><div class="meta">1 signal &middot; H 6/8 &middot; O 6/7</div><div class="flag">Should be in roundup &mdash; merge still failing</div></div><div><span class="badge-watch">WATCH</span> 62%</div></div>
+<div class="theme" style="border-left:3px solid var(--yellow);"><div><div class="title">7. Google Enhances AI Inference Control</div><div class="meta">3 signals &middot; H 6/8 &middot; O 7/7 &middot; LLM Judge: 5/5</div><div class="flag">2nd Google theme &mdash; vendor dedup regression</div></div><div><span class="badge-watch">WATCH</span> 59%</div></div>
+<div class="theme" style="border-left:3px solid var(--border);"><div><div class="title">8. OpenMontage Debuts as Open-Source Video System</div><div class="meta">1 signal &middot; H 4/8 &middot; O 7/7</div><div class="flag">Not AI infrastructure &mdash; video production tool</div></div><div><span class="badge-watch">WATCH</span> 57%</div></div>
+
+<h2>Automated Checks (10/13)</h2>
+<table>
+  <thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead>
+  <tr><td>Theme Count</td><td class="g">PASS</td><td>8 themes</td></tr>
+  <tr><td>Required Fields</td><td class="g">PASS</td><td>All present</td></tr>
+  <tr><td>ACT/WATCH Mix</td><td class="y">WARN</td><td>ACT&times;1 / WATCH&times;7 (target: 2&ndash;3 / 5&ndash;6)</td></tr>
+  <tr><td>Confidence Spread</td><td class="g">PASS</td><td>38pts</td></tr>
+  <tr><td>Confidence Ceiling</td><td class="g">PASS</td><td>&le;95%</td></tr>
+  <tr><td>Summary Length</td><td class="g">PASS</td><td>All 4&ndash;5 sentences</td></tr>
+  <tr><td>Title Specificity</td><td class="r">FAIL</td><td>2 banned words: "Trends", "Diverse"</td></tr>
+  <tr><td>Citations</td><td class="g">PASS</td><td>&ge;1 each</td></tr>
+  <tr><td>URL Format</td><td class="g">PASS</td><td>All http*</td></tr>
+  <tr><td>Signal IDs</td><td class="g">PASS</td><td>42 valid</td></tr>
+  <tr><td>Actionability</td><td class="r">FAIL</td><td>Substack theme has vague what_you_can_do</td></tr>
+  <tr><td>Brief Words</td><td class="g">PASS</td><td>756 (&le;800)</td></tr>
+  <tr><td>Brief Sections</td><td class="g">PASS</td><td>All present</td></tr>
+</table>
+
+<h2>Run Comparison</h2>
+<table>
+  <thead><tr><th>Metric</th><th>34</th><th>35</th><th>36</th><th>37</th><th>38</th><th>39</th><th>40</th></tr></thead>
+  <tr><td>Themes</td><td>8</td><td>8</td><td>8</td><td>6</td><td>8</td><td>7</td><td><strong>8</strong></td></tr>
+  <tr><td>Helpful</td><td>88%</td><td>66%</td><td>89%</td><td>75%</td><td>75%</td><td>84%</td><td class="g"><strong>88%</strong></td></tr>
+  <tr><td>Honest</td><td>91%</td><td>89%</td><td>95%</td><td>98%</td><td>97%</td><td>98%</td><td class="g"><strong>98%</strong></td></tr>
+  <tr><td>North Star</td><td>50%</td><td>13%</td><td>38%</td><td>33%</td><td>38%</td><td>43%</td><td class="g"><strong>50%</strong></td></tr>
+  <tr><td>Trends</td><td>0</td><td>0</td><td>2</td><td>0</td><td>2</td><td>4</td><td class="g"><strong>5</strong></td></tr>
+  <tr><td>LLM Judge</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>3.7</td><td>4.0</td><td class="g"><strong>4.3 PUB READY</strong></td></tr>
+  <tr><td>Hallucinations</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td class="g"><strong>0</strong></td></tr>
+</table>
+
+</div>
+
+<!-- ═══════════════════════ SETUP TAB ═══════════════════════ -->
+<div id="setup" class="tab-panel">
+
+<h2>Prerequisites</h2>
+<table>
+  <thead><tr><th>Service</th><th>Purpose</th><th>Key</th></tr></thead>
+  <tr><td>n8n</td><td>Pipeline orchestration</td><td>&mdash;</td></tr>
+  <tr><td>OpenAI</td><td>GPT-4 Turbo (all agents)</td><td><code>OPENAI_API_KEY</code></td></tr>
+  <tr><td>Exa</td><td>Web search</td><td><code>EXA_API_KEY</code></td></tr>
+  <tr><td>GitHub</td><td>3-tier trending</td><td><code>GITHUB_TOKEN</code></td></tr>
+  <tr><td>Supabase</td><td>Database</td><td><code>SUPABASE_URL</code> + <code>SUPABASE_KEY</code></td></tr>
+</table>
+
+<h2>Setup Steps</h2>
+
+<div class="step"><div class="step-num">1</div><div class="step-content"><h4>Create Supabase Project</h4><p>Go to supabase.com &rarr; new project. Note URL and service role key.</p></div></div>
+<div class="step"><div class="step-num">2</div><div class="step-content"><h4>Run Database Schema</h4><p>SQL Editor &rarr; paste <code>n8n-workflows/supabase-schema.sql</code> &rarr; Run. Creates 8 tables (5 production + 3 golden set).</p></div></div>
+<div class="step"><div class="step-num">3</div><div class="step-content"><h4>Set Up n8n Cloud</h4><p>Sign up at n8n.io and create a new workspace. No installation needed.</p></div></div>
+<div class="step"><div class="step-num">4</div><div class="step-content"><h4>Add Workflow Variables</h4><p>Settings &rarr; Variables: <code>OPENAI_API_KEY</code>, <code>EXA_API_KEY</code>, <code>GITHUB_TOKEN</code>, <code>SUPABASE_URL</code>, <code>SUPABASE_KEY</code></p></div></div>
+<div class="step"><div class="step-num">5</div><div class="step-content"><h4>Import Main Pipeline</h4><p>&hellip; &rarr; Import from File &rarr; <code>calmfalcon-signals-pipeline-multi-agent.json</code>. Then Cmd+A &rarr; Tidy Up.</p></div></div>
+<div class="step"><div class="step-num">6</div><div class="step-content"><h4>Import Eval Pipelines</h4><p>Import all 3 eval workflows separately:</p><ul style="margin:4px 0 0 16px;font-size:13px;"><li><code>calmfalcon-eval-automated.json</code> &mdash; 13 automated checks (production)</li><li><code>calmfalcon-eval-llm-judge.json</code> &mdash; GPT-4 Turbo judge (production)</li><li><code>calmfalcon-eval-golden-set.json</code> &mdash; 9-check golden set scorecard (in progress)</li></ul></div></div>
+<div class="step"><div class="step-num">7</div><div class="step-content"><h4>Connect OpenAI Credentials</h4><p>Click each LLM node (Theme Selector, Theme Writer, Verifier, Brief Writer, Judge) &rarr; select your OpenAI credential.</p></div></div>
+<div class="step"><div class="step-num">8</div><div class="step-content"><h4>Test Run</h4><p>Click Execute Workflow (~3 min). Verify in Supabase:</p><pre>SELECT run_id, total_themes, avg_confidence FROM pipeline_runs ORDER BY completed_at DESC LIMIT 1;</pre></div></div>
+<div class="step"><div class="step-num">9</div><div class="step-content"><h4>Run Production Eval</h4><p>Execute automated eval &rarr; then LLM judge eval:</p><pre>SELECT eval_type, score, overall_verdict FROM eval_reports ORDER BY created_at DESC LIMIT 2;</pre></div></div>
+
+<div class="step"><div class="step-num">9b</div><div class="step-content"><h4>Run Golden Set Eval (after golden set run only)</h4><p>Execute <code>calmfalcon-eval-golden-set</code> &mdash; runs 9 checks (theme count, ACT/WATCH mix, trap filtering, vendor dedup, roundup merge, trend themes, confidence ceiling, expected coverage, signal IDs). Saves to <code>golden_set_eval_scores</code>:</p><pre>SELECT north_star_pct, notes FROM golden_set_eval_scores ORDER BY scored_at DESC LIMIT 1;</pre></div></div>
+<div class="step"><div class="step-num">10</div><div class="step-content"><h4>Import &amp; Run Golden Set (Optional &mdash; In Progress)</h4><p>Import <code>calmfalcon-golden-set-pipeline.json</code> as a separate workflow. Connect OpenAI credentials to LLM nodes. Execute to send 32 curated signals (gs-v2.1) through the full pipeline. Results saved to <code>golden_set_runs</code> + <code>golden_set_themes</code>. Then run <code>calmfalcon-eval-golden-set.json</code> for the scorecard.</p><p style="color:var(--yellow);font-size:12px;margin-top:4px;">&#x26A0; Status: In progress &mdash; Save to Supabase routing being debugged. See backlog item #17.</p></div></div>
+<div class="step"><div class="step-num">11</div><div class="step-content"><h4>Enable Scheduling</h4><p>Toggle workflow to Active. Schedule Trigger fires every Monday 6 AM.</p></div></div>
+
+<h2>Troubleshooting</h2>
+<table>
+  <thead><tr><th>Issue</th><th>Fix</th></tr></thead>
+  <tr><td>OpenAI API error</td><td>Verify key. Check GPT-4 Turbo access + credits.</td></tr>
+  <tr><td>Exa API error</td><td>Verify <code>EXA_API_KEY</code>. Rate limit: 1000 req/day.</td></tr>
+  <tr><td>Supabase error</td><td>Check URL format. Use service role key, not anon.</td></tr>
+  <tr><td>GitHub rate limit</td><td>Add <code>GITHUB_TOKEN</code> for 5000 req/hr.</td></tr>
+  <tr><td>0 themes</td><td>Check Verifier output. May need higher <code>max_tokens</code>.</td></tr>
+  <tr><td>SyntaxError</td><td>Check for escaped backticks in template literals.</td></tr>
+</table>
+
+<h2>File Structure</h2>
+<pre>
+n8n-workflows/
+  calmfalcon-signals-pipeline-multi-agent.json   Main pipeline (34 nodes)
+  calmfalcon-eval-automated.json                  13-check automated eval (production)
+  calmfalcon-eval-llm-judge.json                  GPT-4 Turbo judge (production)
+  supabase-schema.sql                             Database schema (8 tables)
+  calmfalcon-golden-set-pipeline.json              Golden set pipeline — IN PROGRESS
+  calmfalcon-eval-golden-set.json                 Golden set eval — IN PROGRESS
+  calmfalcon-pipeline-prompts-v37.md              Prompt reference (4 agents, ~57k chars)
+</pre>
+
+</div>
+
+<!-- ═══════════════════════ ROADMAP TAB ═══════════════════════ -->
+<div id="roadmap" class="tab-panel">
+
+<style>
+  #roadmap { max-width: 100vw; }
+  .roadmap-wrap { max-width: 1600px; margin: 0 auto; padding: 0 24px; }
+  .roadmap-header { text-align: center; margin-bottom: 32px; }
+  .roadmap-header h2 { border: none; display: inline-block; padding-bottom: 0; margin: 0 0 8px; }
+
+  .timeline {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    position: relative;
+    margin: 40px 0;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    top: 40px;
+    left: 5%;
+    right: 5%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--green) 0%, var(--green) 33%, var(--yellow) 33%, var(--yellow) 66%, var(--accent) 66%, var(--accent) 100%);
+    border-radius: 2px;
+    z-index: 0;
+  }
+
+  .quarter {
+    position: relative;
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 0;
+    overflow: hidden;
+  }
+  .quarter-dot {
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 4px solid var(--bg);
+    z-index: 2;
+  }
+  .quarter-q1 .quarter-dot { background: var(--green); }
+  .quarter-q2 .quarter-dot { background: var(--yellow); }
+  .quarter-q3 .quarter-dot { background: var(--accent); }
+
+  .quarter-head {
+    text-align: center;
+    padding: 60px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .quarter-q1 .quarter-head { background: var(--green-bg); }
+  .quarter-q2 .quarter-head { background: var(--yellow-bg); }
+  .quarter-q3 .quarter-head { background: var(--accent-bg); }
+
+  .quarter-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .quarter-q1 .quarter-label { color: var(--green); }
+  .quarter-q2 .quarter-label { color: var(--yellow); }
+  .quarter-q3 .quarter-label { color: var(--accent); }
+  .quarter-title { font-size: 22px; font-weight: 700; margin: 4px 0; }
+  .quarter-sub { font-size: 13px; color: var(--muted); }
+
+  .quarter-body { padding: 20px; }
+  .quarter-body h4 {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    margin: 18px 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .quarter-body h4:first-child { margin-top: 0; }
+  .quarter-body ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 14px;
+  }
+  .quarter-body li {
+    padding: 6px 0 6px 22px;
+    position: relative;
+    line-height: 1.5;
+    color: var(--text);
+  }
+  .quarter-body li::before {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    font-size: 13px;
+  }
+  .quarter-q1 .quarter-body li::before { content: '✓'; color: var(--green); font-weight: 700; }
+  .quarter-q2 .quarter-body li::before { content: '◷'; color: var(--yellow); font-weight: 700; }
+  .quarter-q3 .quarter-body li::before { content: '○'; color: var(--accent); font-weight: 700; }
+
+  .p-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .p-badge.p0 { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .p-badge.p1 { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+  .p-badge.p2 { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+  .p-badge.p3 { background: rgba(139,143,163,0.1); color: var(--muted); border: 1px solid rgba(139,143,163,0.3); }
+
+  .north-star-strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    margin-top: 32px;
+  }
+  .north-star-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+  }
+  .north-star-cell .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
+  .north-star-cell .val { font-size: 32px; font-weight: 700; margin: 4px 0; }
+  .north-star-cell .detail { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  @media (max-width: 1100px) {
+    .timeline { grid-template-columns: 1fr; gap: 24px; }
+    .timeline::before { display: none; }
+    .north-star-strip { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="roadmap-wrap">
+
+<div class="roadmap-header">
+  <h2>Product Roadmap</h2>
+  <p style="color:var(--muted);font-size:15px;margin:0;">From zero to demo-day winning MVP. Beta launch planned for Q2. Enterprise scale by Q3.</p>
+</div>
+
+<div class="timeline">
+
+  <!-- ═══ Q1 2026 — Shipped ═══ -->
+  <div class="quarter quarter-q1">
+    <div class="quarter-dot"></div>
+    <div class="quarter-head">
+      <div class="quarter-label">Shipped</div>
+      <div class="quarter-title">Q1 2026</div>
+      <div class="quarter-sub">March 25 &ndash; April 10</div>
+    </div>
+    <div class="quarter-body">
+      <h4>Multi-Agent Pipeline</h4>
+      <ul>
+        <li>Theme Selector agent</li>
+        <li>Theme Writer agent (&times;8 parallel)</li>
+        <li>Verifier Agent (12-rule QC)</li>
+        <li>Brief Writer agent</li>
+        <li>Deterministic confidence scoring</li>
+      </ul>
+
+      <h4>Data &amp; Infrastructure</h4>
+      <ul>
+        <li>14 Exa web search queries</li>
+        <li>3-tier GitHub trending (26 AI orgs)</li>
+        <li>Signal clustering (vendor + keyword)</li>
+        <li>n8n Cloud (34 nodes, weekly schedule)</li>
+        <li>Supabase (8 tables) + GCP frontend</li>
+        <li>Exa migration (replaced Tavily)</li>
+      </ul>
+
+      <h4>Evaluation Framework</h4>
+      <ul>
+        <li>HHH rubric (22 questions)</li>
+        <li>13-rule automated eval pipeline</li>
+        <li>LLM Judge (4 dimensions, GPT-4 Turbo)</li>
+        <li>Per-agent eval rubrics</li>
+        <li>40+ scored runs</li>
+      </ul>
+
+      <h4>Prompt Engineering</h4>
+      <ul>
+        <li>RITGE framework (all 4 agents)</li>
+        <li>Prompt v37 (graded A)</li>
+        <li>Anti-hallucination guards</li>
+        <li>ACT/WATCH 2-tier taxonomy</li>
+      </ul>
+
+      <h4>Milestones</h4>
+      <ul>
+        <li>Mar 25 &mdash; Run 1 (first execution)</li>
+        <li>Mar 28 &mdash; Demo Day presentation</li>
+        <li>Apr 6 &mdash; Run 40 (LLM Judge 4.3/5.0)</li>
+        <li>Apr 2026 &mdash; <strong>Best Comprehensive Project Award</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Q2 2026 — Next ═══ -->
+  <div class="quarter quarter-q2">
+    <div class="quarter-dot"></div>
+    <div class="quarter-head">
+      <div class="quarter-label">Next &mdash; Beta Launch</div>
+      <div class="quarter-title">Q2 2026</div>
+      <div class="quarter-sub">April &ndash; June</div>
+    </div>
+    <div class="quarter-body">
+      <h4>Quality Fixes (Blocking Beta)</h4>
+      <ul>
+        <li><span class="p-badge p0">P0</span> Cross-category trend dedup</li>
+        <li><span class="p-badge p0">P0</span> GitHub roundup merge robustness</li>
+        <li><span class="p-badge p0">P0</span> Tighter enterprise AI relevance gate</li>
+        <li><span class="p-badge p0">P0</span> Deterministic vendor dedup (code, not LLM)</li>
+      </ul>
+
+      <h4>New Features</h4>
+      <ul>
+        <li><span class="p-badge p1">P1</span> Strategic AI queries (pricing, talent, budget)</li>
+        <li><span class="p-badge p1">P1</span> Watchlist / bookmark per theme</li>
+        <li><span class="p-badge p2">P2</span> Source type tags on theme cards</li>
+        <li><span class="p-badge p2">P2</span> 5 pilot users onboarded</li>
+        <li><span class="p-badge p3">P3</span> Daily runs (not weekly)</li>
+        <li><span class="p-badge p3">P3</span> Slack / Teams integration</li>
+      </ul>
+
+      <h4>Compliance &amp; Readiness</h4>
+      <ul>
+        <li>Data encryption (AES-256)</li>
+        <li>SOC 2 Type II certification</li>
+        <li>Terms of service drafted</li>
+        <li>Zero-retention option for enterprise</li>
+      </ul>
+
+      <h4>Impact</h4>
+      <ul>
+        <li><strong>P0 fixes &rarr; North Star 50% &rarr; ~75%</strong></li>
+        <li>First real pilot feedback</li>
+        <li>Beta-ready for paid users</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Q3 2026 — Future ═══ -->
+  <div class="quarter quarter-q3">
+    <div class="quarter-dot"></div>
+    <div class="quarter-head">
+      <div class="quarter-label">Future &mdash; Enterprise Scale</div>
+      <div class="quarter-title">Q3 2026</div>
+      <div class="quarter-sub">July &ndash; September</div>
+    </div>
+    <div class="quarter-body">
+      <h4>Enterprise Features</h4>
+      <ul>
+        <li>Custom source configuration</li>
+        <li>WoW acceleration alerts (WATCH&rarr;ACT push)</li>
+        <li>Multi-workspace support</li>
+        <li>Dedicated account manager (Enterprise tier)</li>
+        <li>API access for enterprise customers</li>
+      </ul>
+
+      <h4>Platform Growth</h4>
+      <ul>
+        <li>Scale to 100 users (early enterprise pilots)</li>
+        <li>Add research/academic sources (arXiv)</li>
+        <li>Vertical briefs (Healthcare, FinTech AI)</li>
+      </ul>
+
+      <h4>North Star Target</h4>
+      <ul>
+        <li>&ge;85% correct themes</li>
+        <li>Driven by custom sources + pilot feedback</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- North Star progression strip -->
+<h3 style="margin-top:32px;text-align:center;border:none;">North Star Progression</h3>
+<div class="north-star-strip">
+  <div class="north-star-cell" style="border-top:3px solid var(--green);">
+    <div class="label">Q1 &mdash; Demo Day</div>
+    <div class="val" style="color:var(--yellow);">50%</div>
+    <div class="detail">Target was &ge;60% &middot; Close to target</div>
+  </div>
+  <div class="north-star-cell" style="border-top:3px solid var(--yellow);">
+    <div class="label">Q2 &mdash; Beta Launch</div>
+    <div class="val" style="color:var(--yellow);">~75%</div>
+    <div class="detail">Target &ge;80% &middot; After P0 fixes land</div>
+  </div>
+  <div class="north-star-cell" style="border-top:3px solid var(--accent);">
+    <div class="label">Q3 &mdash; Enterprise</div>
+    <div class="val" style="color:var(--accent);">&ge;85%</div>
+    <div class="detail">Custom sources + pilot feedback</div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════ LEARNINGS TAB ═══════════════════════ -->
+<div id="learnings" class="tab-panel">
+
+<h2>Key Learnings</h2>
+<p style="color:var(--muted);margin-bottom:20px;">10 takeaways from building a multi-agent AI pipeline across 40 runs.</p>
+
+<ol style="font-size:17px;line-height:1.8;">
+  <li><strong>One big AI agent failed, four small ones worked.</strong> Splitting one do-everything agent into four specialists (select, write, verify, summarize) eliminated made-up product names and citation hallucinations.</li>
+
+  <li><strong>Bad data in = bad results out, no matter how good your prompts are.</strong> Switching our web search provider fixed more issues than weeks of prompt tweaking because the old one was feeding us wrong dates.</li>
+
+  <li><strong>Don't trust AI to merge duplicates. Use code instead.</strong> Asking the LLM to "don't repeat vendors" worked sometimes, failed other times. A simple code rule would've been 100% reliable.</li>
+
+  <li><strong>Keep it simple.</strong> Users didn't need five categories. I pivoted to two: act now or watch later. Simplifying our signal classification from five types to just ACT/WATCH made the product instantly clearer and less complex.</li>
+
+  <li><strong>Don't rely only on the LLM's own judgment about how confident it is.</strong> Instead, add a rule-based or formula-based scoring layer in your application code to judge output quality more reliably.</li>
+
+  <li><strong>Filtering out noise is harder than writing good content.</strong> The AI writes great summaries for irrelevant topics. The real challenge is keeping junk out before it reaches the writer.</li>
+
+  <li><strong>Run tasks in parallel, check quality in sequence.</strong> Writing 8 themes simultaneously cut our pipeline from 8 minutes to 3. Quality checks still need to see all themes together.</li>
+
+  <li><strong>A scoring checklist beats "does this feel right?"</strong> Our 22-question rubric turned vague feedback into specific, fixable problems with clear before/after tracking.</li>
+
+  <li><strong>Accuracy is fixable with rules. Usefulness depends on your inputs.</strong> We got factual accuracy from 53% to 98% through mechanical fixes, but usefulness depends on whether the right signals were ingested in the first place.</li>
+
+  <li><strong>Prompt engineering gets you halfway. The rest is an engineering problem.</strong> Going from 0% to 50% quality was all prompt work. Getting from 50% to 80% requires fixing the data pipeline in code.</li>
+</ol>
+
+</div>
+
+</div>
+
+<div class="footer">
+  CalmFalcon AI Signals Intelligence Platform &mdash; v5.0 &mdash; April 2026<br>
+  Pipeline v20 &nbsp;|&nbsp; 34 nodes &nbsp;|&nbsp; 8 Supabase tables &nbsp;|&nbsp; 14 Exa queries &nbsp;|&nbsp; 3-tier GitHub
+</div>
+
+<script>
+function showTab(id){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelector('.tab[onclick="showTab(\''+id+'\')"]').classList.add('active');
+}
+</script>
+
+</body>
+</html>

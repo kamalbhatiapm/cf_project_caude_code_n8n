@@ -1,0 +1,148 @@
+{
+  "name": "CalmFalcon Eval \u2014 Automated Checks",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# CalmFalcon Eval 1 \u2014 Automated Checks\nRun after the main pipeline. Fetches the latest output from Supabase and runs 11 structural checks \u2014 no API cost, completes in seconds.\n\n**Checks:** Theme count \u00b7 Required fields \u00b7 Signal type diversity \u00b7 Confidence distribution \u00b7 Citation coverage \u00b7 Citation URL format \u00b7 Signal ID format (hallucination check) \u00b7 Actionability language \u00b7 Brief word count \u00b7 Brief sections \u00b7 WoW continuation rate",
+        "height": 100,
+        "width": 1000,
+        "color": 4
+      },
+      "id": "eval1-sticky-overview",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "eval1-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const url = $vars.SUPABASE_URL;\nconst key = $vars.SUPABASE_KEY;\nif (!url || !key) throw new Error('Set SUPABASE_URL and SUPABASE_KEY as workflow variables');\n\nconst h = { 'apikey': key, 'Authorization': `Bearer ${key}` };\n\nconst [runsRes, briefRes] = await Promise.all([\n  this.helpers.httpRequest({ method: 'GET', url: `${url}/rest/v1/pipeline_runs?order=completed_at.desc&limit=1`, headers: h }),\n  this.helpers.httpRequest({ method: 'GET', url: `${url}/rest/v1/weekly_briefs?order=generated_at.desc&limit=1`, headers: h })\n]);\n\nconst run = Array.isArray(runsRes) && runsRes[0];\nif (!run) throw new Error('No pipeline runs found. Run the main pipeline first.');\nconst brief = (Array.isArray(briefRes) && briefRes[0]) || null;\n\nconst themesRes = await this.helpers.httpRequest({\n  method: 'GET',\n  url: `${url}/rest/v1/themes?week_number=eq.${run.week_number}&year=eq.${run.year}&order=confidence_score.desc`,\n  headers: h\n});\nconst themes = Array.isArray(themesRes) ? themesRes : [];\n\nconsole.log(`Fetched: ${themes.length} themes | run ${run.run_id} | brief ${brief?.brief_id || 'none'}`);\nreturn [{ json: { run, themes, brief, week_number: run.week_number, year: run.year } }];"
+      },
+      "id": "eval1-fetch",
+      "name": "Fetch Latest Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "notes": "Fetches latest pipeline_run, all themes for that week, and the weekly brief from Supabase."
+    },
+    {
+      "parameters": {
+        "jsCode": "const { run, themes, brief, week_number, year } = $input.first().json;\nconst checks = [];\nconst pass = (name, detail) => checks.push({ name, status: 'PASS', detail });\nconst fail = (name, detail) => checks.push({ name, status: 'FAIL', detail });\nconst warn = (name, detail) => checks.push({ name, status: 'WARN', detail });\n\n// 1 \u2014 Theme count (target: 6\u20138)\nconst tc = themes.length;\nif (tc >= 6 && tc <= 8) pass('Theme Count', `${tc} themes (target: 6\u20138)`);\nelse if (tc > 0) warn('Theme Count', `${tc} themes \u2014 outside target range of 6\u20138`);\nelse fail('Theme Count', 'No themes found in Supabase for this week');\n\n// 2 \u2014 Required fields\nconst missingFields = themes.filter(t => !t.title || !t.summary || !t.why_it_matters || !t.what_you_can_do);\nif (missingFields.length === 0) pass('Required Fields', 'All themes have title, summary, why_it_matters, what_you_can_do');\nelse fail('Required Fields', `${missingFields.length} themes missing required fields: ${missingFields.map(t => t.theme_id).join(', ')}`);\n\n// 3 \u2014 ACT/WATCH tier diversity (DB stores ACT\u2192RISING, WATCH\u2192EMERGING)\n// Map DB values back to display tiers\nconst tierMap = { RISING: 'ACT', BREAKING: 'ACT', EMERGING: 'WATCH', STABLE: 'WATCH', DECLINING: 'WATCH' };\nconst tiers = themes.map(t => tierMap[t.signal_type] || t.signal_type);\nconst hasACT = tiers.includes('ACT');\nconst hasWATCH = tiers.includes('WATCH');\nconst actCount = tiers.filter(t => t === 'ACT').length;\nconst watchCount = tiers.filter(t => t === 'WATCH').length;\nif (hasACT && hasWATCH) {\n  if (actCount >= 2 && actCount <= 3 && watchCount >= 5 && watchCount <= 6) {\n    pass('ACT/WATCH Tier Mix', `ACT\u00d7${actCount} / WATCH\u00d7${watchCount} (target: ACT 2\u20133, WATCH 5\u20136)`);\n  } else {\n    warn('ACT/WATCH Tier Mix', `ACT\u00d7${actCount} / WATCH\u00d7${watchCount} \u2014 has both tiers but outside ideal range (ACT 2\u20133, WATCH 5\u20136)`);\n  }\n} else if (!hasACT) {\n  fail('ACT/WATCH Tier Mix', `All ${tc} themes are WATCH \u2014 no ACT themes. Brief must contain both tiers.`);\n} else if (!hasWATCH) {\n  fail('ACT/WATCH Tier Mix', `All ${tc} themes are ACT \u2014 no WATCH themes. Brief must contain both tiers.`);\n}\n\n// 4 \u2014 Confidence score distribution (spread must be \u226520 pts, H7)\nif (themes.length > 0) {\n  const scores = themes.map(t => t.confidence_score);\n  const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);\n  const min = Math.min(...scores);\n  const max = Math.max(...scores);\n  const spread = max - min;\n  if (spread >= 20) pass('Confidence Spread', `spread=${spread}pts \u226520 \u2705 avg=${avg} (min=${min}, max=${max})`);\n  else if (spread >= 10) warn('Confidence Spread', `spread=${spread}pts \u2014 below \u226520pt target. avg=${avg} (min=${min}, max=${max})`);\n  else fail('Confidence Spread', `spread=${spread}pts \u2014 critically low, all themes same score. avg=${avg}`);\n}\n\n// 4b \u2014 Confidence ceiling (no theme should exceed 95%)\nif (themes.length > 0) {\n  const overCap = themes.filter(t => t.confidence_score > 95);\n  if (overCap.length === 0) pass('Confidence Ceiling', `All themes \u226495% \u2014 no over-confidence`);\n  else fail('Confidence Ceiling', `${overCap.length} themes exceed 95% cap: ${overCap.map(t => `${t.theme_id}(${t.confidence_score}%)`).join(', ')}`);\n}\n\n// 5 \u2014 Summary sentence count (must be 4\u20135 sentences, H8)\nconst summaryFails = themes.filter(t => {\n  if (!t.summary) return true;\n  const sentences = t.summary.trim().split(/[.!?]+/).filter(s => s.trim().length > 5);\n  return sentences.length < 4 || sentences.length > 5;\n});\nif (summaryFails.length === 0) pass('Summary Length', `All themes have 4\u20135 sentence summaries`);\nelse fail('Summary Length', `${summaryFails.length} themes have wrong sentence count (need 4\u20135): ${summaryFails.map(t => t.theme_id).join(', ')}`);\n\n// 6 \u2014 Banned title words (Fix N + Fix P)\nconst bannedTitleWords = [\n  'revolution', 'expanding', 'evolution', 'rise of', 'adoption of', 'advances in',\n  'advancements in', 'new era', 'transformation', 'future of', 'landscape', 'growing',\n  'surge', 'wave', 'boom', 'overview', 'latest', 'emergence', 'emergence of',\n  'update', 'updates', 'progress', 'developments', 'trends', 'solutions',\n  'opportunities', 'challenges', 'impact', 'implications'\n];\nconst bannedTitleThemes = themes.filter(t => {\n  const lower = (t.title || '').toLowerCase();\n  return bannedTitleWords.some(w => lower.includes(w));\n});\nif (bannedTitleThemes.length === 0) pass('Title Specificity', 'No banned vague title words detected');\nelse fail('Title Specificity', `${bannedTitleThemes.length} themes have banned title words: ${bannedTitleThemes.map(t => `\"${t.title}\"`).join(', ')}`);\n\n// 7 \u2014 Citation coverage\nconst noCitations = themes.filter(t => !t.citations || t.citations.length === 0);\nif (noCitations.length === 0) pass('Citation Coverage', `All ${tc} themes have at least 1 citation`);\nelse fail('Citation Coverage', `${noCitations.length} themes have no citations: ${noCitations.map(t => t.theme_id).join(', ')}`);\n\n// 8 \u2014 Citation URL format\nconst badUrls = themes.flatMap(t => (t.citations || []).filter(c => !c.url || !c.url.startsWith('http')));\nif (badUrls.length === 0) pass('Citation URL Format', 'All citation URLs start with http');\nelse fail('Citation URL Format', `${badUrls.length} citations have missing or invalid URLs`);\n\n// 9 \u2014 Signal ID format (hallucination check)\nconst allIds = themes.flatMap(t => t.supporting_signal_ids || []);\nconst badIds = allIds.filter(id => !String(id).startsWith('tv-') && !String(id).startsWith('gh-'));\nif (badIds.length === 0) pass('Signal ID Format', `${allIds.length} IDs all match tv-* or gh-* (no hallucinated IDs)`);\nelse fail('Signal ID Format', `${badIds.length} hallucinated IDs detected: ${badIds.slice(0, 5).join(', ')}`);\n\n// 10 \u2014 what_you_can_do not vague\nconst vagueKw = ['monitor', 'watch', 'stay informed', 'keep an eye', 'follow developments', 'track this', 'consider exploring'];\nconst vagueThemes = themes.filter(t => vagueKw.some(kw => (t.what_you_can_do || '').toLowerCase().includes(kw)));\nif (vagueThemes.length === 0) pass('Actionability', 'No vague action language detected in any theme');\nelse fail('Actionability', `${vagueThemes.length} themes have vague what_you_can_do: ${vagueThemes.map(t => `\"${t.title}\"`).join(', ')}`);\n\n// 11 \u2014 Brief word count\nif (brief?.content) {\n  const wc = brief.content.trim().split(/\\s+/).length;\n  if (wc <= 800) pass('Brief Word Count', `${wc} words (limit: 800)`);\n  else fail('Brief Word Count', `${wc} words \u2014 exceeds 800 word limit by ${wc - 800}`);\n} else {\n  warn('Brief Exists', 'No weekly brief found in Supabase for this week');\n}\n\n// 12 \u2014 Brief required sections\nif (brief?.content) {\n  const required = ['Executive Summary', 'Key Themes', 'Watch List'];\n  const missingSections = required.filter(s => !brief.content.includes(s));\n  if (missingSections.length === 0) pass('Brief Sections', 'Has Executive Summary, Key Themes, Watch List');\n  else fail('Brief Sections', `Missing sections: ${missingSections.join(', ')}`);\n}\n\nconst passed = checks.filter(c => c.status === 'PASS').length;\nconst failed = checks.filter(c => c.status === 'FAIL').length;\nconst warned = checks.filter(c => c.status === 'WARN').length;\nconsole.log(`Eval complete \u2014 ${passed}/${checks.length} passed | ${failed} failures | ${warned} warnings`);\n\nreturn [{ json: {\n  week_number, year, checks,\n  summary: { score: `${passed}/${checks.length}`, passed, failed, warned, total: checks.length },\n  run_stats: { avg_confidence: run.avg_confidence, total_signals: run.total_signals_processed, total_themes: run.total_themes, run_id: run.run_id }\n} }];"
+      },
+      "id": "eval1-checks",
+      "name": "Run Automated Checks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "notes": "11 checks: theme count, required fields, type diversity, confidence distribution, citation coverage, URL format, signal ID hallucination, actionability language, brief word count, brief sections, WoW rate."
+    },
+    {
+      "parameters": {
+        "jsCode": "const { checks, summary, week_number, year, run_stats } = $input.first().json;\n\nconst icon = s => ({ PASS: '\u2705', FAIL: '\u274c', WARN: '\u26a0\ufe0f' }[s] || '?');\nconst verdict = summary.failed > 0 ? '\ud83d\udd34 NEEDS FIXES' : summary.warned > 0 ? '\ud83d\udfe1 REVIEW WARNINGS' : '\ud83d\udfe2 ALL CLEAR';\n\nconst lines = [\n  `# CalmFalcon Pipeline Eval \u2014 Week ${week_number}/${year}`,\n  `## ${verdict}  \u00b7  Score: ${summary.score}  (${summary.passed} pass \u00b7 ${summary.warned} warn \u00b7 ${summary.failed} fail)`,\n  ``,\n  `**Pipeline:** ${run_stats.total_signals} signals \u2192 ${run_stats.total_themes} themes \u00b7 avg confidence ${run_stats.avg_confidence}% \u00b7 run \\`${run_stats.run_id}\\``,\n  ``,\n  `## Check Results`,\n  ...checks.map(c => `${icon(c.status)} **${c.name}** \u2014 ${c.detail}`),\n  ``,\n  summary.failed > 0\n    ? `## \u274c Action Required\\nFix the ${summary.failed} failing check(s) before demo day.`\n    : summary.warned > 0\n    ? `## \u26a0\ufe0f Review Before Demo\\nNo blockers, but review ${summary.warned} warning(s).`\n    : `## \u2705 Pipeline Output Looks Good\\nAll ${summary.total} checks passed. Ready for demo.`\n];\n\nconst report = lines.join('\\n');\nconsole.log(report);\nreturn [{ json: { report, verdict, checks, ...summary, week_number, year, run_id: run_stats.run_id } }];"
+      },
+      "id": "eval1-report",
+      "name": "Format Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "notes": "Outputs a markdown eval report. Check the node output panel to read it."
+    },
+    {
+      "parameters": {
+        "jsCode": "const { report, verdict, score, passed, failed, warned, total, checks, week_number, year, run_id } = $input.first().json;\n\nconst url = $vars.SUPABASE_URL;\nconst key = $vars.SUPABASE_KEY;\nif (!url || !key) throw new Error('Set SUPABASE_URL and SUPABASE_KEY as workflow variables');\n\nconst row = {\n  eval_type: 'automated',\n  week_number,\n  year,\n  run_id: run_id || null,\n  score,\n  passed,\n  failed,\n  warned,\n  overall_verdict: verdict,\n  report_markdown: report,\n  checks_detail: checks || []\n};\n\nconst res = await this.helpers.httpRequest({\n  method: 'POST',\n  url: `${url}/rest/v1/eval_reports`,\n  headers: {\n    'apikey': key,\n    'Authorization': `Bearer ${key}`,\n    'Content-Type': 'application/json',\n    'Prefer': 'return=representation'\n  },\n  body: JSON.stringify([row])\n});\n\nconsole.log(`Eval report saved \u2014 Week ${week_number}/${year} | ${verdict}`);\nreturn [{ json: { saved: true, verdict, score, week_number, year } }];"
+      },
+      "id": "eval1-save",
+      "name": "Save Report to Supabase",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "notes": "Inserts one row into eval_reports. Run CREATE TABLE from supabase-schema.sql first."
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Latest Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Latest Data": {
+      "main": [
+        [
+          {
+            "node": "Run Automated Checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Automated Checks": {
+      "main": [
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Report": {
+      "main": [
+        [
+          {
+            "node": "Save Report to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "CalmFalcon"
+    },
+    {
+      "name": "Eval"
+    },
+    {
+      "name": "Automated"
+    }
+  ]
+}

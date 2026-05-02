@@ -1,0 +1,269 @@
+{
+  "name": "CalmFalcon Eval \u2014 LLM Theme Quality Judge",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# CalmFalcon Eval 2 \u2014 LLM Theme Quality Judge\nRun after the main pipeline. Sends each theme to GPT-4 Turbo for quality scoring across 4 dimensions. Costs ~$0.10\u20130.30 per run depending on theme count.\n\n**Scores (1\u20135):** Enterprise Relevance \u00b7 Signal Type Accuracy \u00b7 Actionability \u00b7 Summary Quality\n**Output:** Per-theme scores + flags/highlights + aggregate verdict with weakest/top theme",
+        "height": 100,
+        "width": 1060,
+        "color": 3
+      },
+      "id": "eval2-sticky-overview",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "eval2-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "\u25b6 START\nManual trigger \u2014 run after main pipeline completes",
+        "height": 60,
+        "width": 180,
+        "color": 1
+      },
+      "id": "eval2-sticky-trigger",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const url = $vars.SUPABASE_URL;\nconst key = $vars.SUPABASE_KEY;\nif (!url || !key) throw new Error('Set SUPABASE_URL and SUPABASE_KEY as workflow variables');\n\nconst h = { 'apikey': key, 'Authorization': `Bearer ${key}` };\n\n// Fetch latest pipeline run\nconst runsRes = await this.helpers.httpRequest({\n  method: 'GET',\n  url: `${url}/rest/v1/pipeline_runs?order=completed_at.desc&limit=1`,\n  headers: h\n});\nconst run = Array.isArray(runsRes) && runsRes[0];\nif (!run) throw new Error('No pipeline runs found. Run the main pipeline first.');\n\n// Fetch themes for this specific week \u2014 scoped by week+year to match pipeline run\nconst themesRes = await this.helpers.httpRequest({\n  method: 'GET',\n  url: `${url}/rest/v1/themes?week_number=eq.${run.week_number}&year=eq.${run.year}&order=confidence_score.desc`,\n  headers: h\n});\nconst themes = Array.isArray(themesRes) ? themesRes : [];\nif (themes.length === 0) throw new Error('No themes found for this week. Run the main pipeline first.');\n\nconsole.log(`Loaded ${themes.length} themes for Week ${run.week_number}/${run.year} (run: ${run.run_id}, prompt: ${run.prompt_version_id}) \u2014 sending to LLM judge`);\n\n// Return one item per theme\nreturn themes.map(t => ({\n  json: {\n    theme_id: t.theme_id,\n    title: t.title,\n    summary: t.summary,\n    signal_type: t.signal_type,\n    confidence_score: t.confidence_score,\n    why_it_matters: t.why_it_matters || '',\n    what_you_can_do: Array.isArray(t.what_you_can_do) ? t.what_you_can_do.join(' ') : (t.what_you_can_do || ''),\n    citations: t.citations || [],\n    week_number: run.week_number,\n    year: run.year,\n    run_id: run.run_id,\n    prompt_version_id: run.prompt_version_id\n  }\n}));"
+      },
+      "id": "eval2-fetch",
+      "name": "Fetch Themes for Judging",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "notes": "Fetches latest pipeline run + all themes for that week. Outputs one item per theme."
+    },
+    {
+      "parameters": {
+        "content": "FETCH\nLoads all themes from Supabase for the latest run. One output item per theme.",
+        "height": 60,
+        "width": 220,
+        "color": 1
+      },
+      "id": "eval2-sticky-fetch",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build one judge prompt per theme, return as single batch\nconst themes = $input.all().map(item => item.json);\nif (themes.length === 0) throw new Error('No themes received');\n\nconst { week_number, year, run_id } = themes[0];\n\nconst themeBlocks = themes.map((t, i) => {\n  const citationCount = Array.isArray(t.citations) ? t.citations.length : 0;\n  const citationDomains = Array.isArray(t.citations)\n    ? t.citations.map(c => {\n        try { return new URL(c.url).hostname; } catch { return c.url || 'unknown'; }\n      }).join(', ')\n    : 'none';\n  return `--- THEME ${i + 1} ---\ntheme_id: ${t.theme_id}\ntitle: ${t.title}\nsignal_type: ${t.signal_type}\nconfidence_score: ${t.confidence_score}/100\nsummary: ${t.summary}\nwhy_it_matters: ${t.why_it_matters}\nwhat_you_can_do: ${t.what_you_can_do}\ncitation_count: ${citationCount}\ncitation_domains: ${citationDomains}`;\n}).join('\\n\\n');\n\nconst prompt = `You are an expert evaluator for an AI Signals Intelligence platform used by enterprise AI Platform Leaders and engineering managers.\n\nYour job is to score each theme from a weekly AI pipeline run on 4 quality dimensions.\n\nTAXONOMY CONTEXT:\nThis pipeline uses a 2-tier ACT/WATCH system (stored in DB as RISING=ACT, EMERGING=WATCH):\n- ACT (RISING in DB): Something specific happened THIS week \u2014 a named product release, new API version, published benchmark, or policy announcement \u2014 with \u22652 corroborating signals. Warrants action within 5 days.\n- WATCH (EMERGING in DB): Ongoing trend, early signal, or single credible source. No specific named this-week trigger. Track over 30 days.\n\nSCORING RUBRIC (1\u20135 scale):\n\n1. enterprise_relevance\n   5 = Critical for AI platform/infra decisions (inference cost, vendor lock-in, architecture choice, compliance)\n   4 = Clearly relevant to enterprise AI teams\n   3 = Somewhat relevant, niche or tangential\n   2 = Mostly irrelevant to enterprise AI platform leaders\n   1 = Consumer or academic only \u2014 wrong audience\n\n2. signal_type_accuracy (ACT vs WATCH)\n   IMPORTANT CONTEXT: The pipeline enforces a balanced mix of max 3 ACT and min 5 WATCH themes per brief. This means some themes with release-like signals may be intentionally classified as WATCH to maintain brief balance. Do NOT penalize WATCH classification on a release-adjacent theme if the theme has \u22642 signals or lacks multiple vendor-domain sources \u2014 the pipeline correctly downgrades these to WATCH.\n   5 = Tier perfectly matches evidence. ACT: cites a specific named release/event this week with \u22653 multi-source signals from vendor domains. WATCH: correctly identifies an ongoing trend, early signal, or single-source observation.\n   4 = Tier is correct and well-supported. WATCH on a specific release is acceptable if the theme has only 1-2 signals or all signals are from GitHub/non-vendor domains.\n   3 = Tier is plausible but evidence is borderline (e.g., ACT but only general industry news, no specific release named)\n   2 = Tier is clearly wrong \u2014 e.g., ACT assigned to a broad evergreen category with no this-week event and no named product; or WATCH assigned to a confirmed major vendor release with \u22653 official vendor-domain sources\n   1 = Completely wrong classification\n\n3. actionability\n   5 = what_you_can_do gives specific, concrete next steps achievable within 5 business days (evaluate X vendor, run Y benchmark, update Z config)\n   4 = Good concrete guidance with some specificity\n   3 = Reasonable guidance but vague or generic\n   2 = Vague advice (\"monitor this\", \"stay informed\", \"keep an eye on\", \"consider exploring\", \"engage with experts\")\n   1 = No useful action or missing entirely\n\n4. summary_quality\n   5 = 4\u20135 sentences, names specific product/version/vendor, includes one number or benchmark, covers technical mechanism and ecosystem impact\n   4 = Good summary, minor improvements possible\n   3 = Adequate but stays at headline level \u2014 no specific version, no number, no mechanism\n   2 = Vague, inaccurate, or too long (>5 sentences)\n   1 = Confusing, wrong, or meaningless\n\nOUTPUT FORMAT \u2014 respond with valid JSON only, no prose before or after:\n{\n  \"themes\": [\n    {\n      \"theme_id\": \"<theme_id>\",\n      \"title\": \"<title>\",\n      \"scores\": {\n        \"enterprise_relevance\": <1-5>,\n        \"signal_type_accuracy\": <1-5>,\n        \"actionability\": <1-5>,\n        \"summary_quality\": <1-5>,\n        \"overall\": <average to 1 decimal>\n      },\n      \"flags\": [\"<specific issue to fix>\"],\n      \"highlights\": [\"<notable strength>\"]\n    }\n  ]\n}\n\nRules:\n- flags = specific problems to fix (empty array if none)\n- highlights = notable strengths (empty array if none)\n- Be strict: 4+ means genuinely good, not just acceptable\n- Do not pad scores. \"monitor this space\" = actionability 2. Broad category with no named release = signal_type_accuracy 2 if marked ACT.\n- For signal_type_accuracy: ACT requires a SPECIFIC named product/version/event this week. If you cannot identify what specifically was released or announced, it should be WATCH.\n\nTHEMES TO EVALUATE:\n\n${themeBlocks}`;\n\nconsole.log(`Built judge prompt for ${themes.length} themes (${prompt.length} chars)`);\nreturn [{ json: { prompt, themes_input: themes, week_number, year, run_id } }];"
+      },
+      "id": "eval2-build-prompt",
+      "name": "Build Judge Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "notes": "Collapses all per-theme items into one batch prompt. Sends all themes to GPT-4 in a single call."
+    },
+    {
+      "parameters": {
+        "content": "BUILD PROMPT\nCollapses all themes into one structured judge prompt. Single LLM call = lower cost.",
+        "height": 60,
+        "width": 220,
+        "color": 1
+      },
+      "id": "eval2-sticky-prompt",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        440,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { prompt, themes_input, week_number, year, run_id } = $input.first().json;\n\n// Read OpenAI key from workflow variable\nconst openaiKey = $vars.OPENAI_API_KEY;\nif (!openaiKey) throw new Error('Set OPENAI_API_KEY as a workflow variable (Settings \u2192 Variables)');\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: 'https://api.openai.com/v1/chat/completions',\n  headers: {\n    'Content-Type': 'application/json',\n    'Authorization': `Bearer ${openaiKey}`\n  },\n  body: JSON.stringify({\n    model: 'gpt-4-turbo',\n    temperature: 0.2,\n    max_tokens: 4000,\n    response_format: { type: 'json_object' },\n    messages: [\n      {\n        role: 'system',\n        content: 'You are a strict quality evaluator for an AI Signals Intelligence platform. Always respond with valid JSON only.'\n      },\n      {\n        role: 'user',\n        content: prompt\n      }\n    ]\n  })\n});\n\nconsole.log(`GPT-4 Turbo responded \u2014 tokens used: ${response.usage?.total_tokens || 'N/A'}`);\n\n// Pass through all context plus the raw response for the parse node\nreturn [{ json: { ...response, week_number, year, run_id, themes_input } }];"
+      },
+      "id": "eval2-llm-call",
+      "name": "GPT-4 Turbo Judge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "notes": "Calls OpenAI API directly via httpRequest \u2014 avoids n8n template expression type coercion bugs. Reads OPENAI_API_KEY from workflow variables."
+    },
+    {
+      "parameters": {
+        "content": "LLM JUDGE\nGPT-4 Turbo via direct httpRequest. Reads OPENAI_API_KEY from workflow variables. json_object mode = no parse errors.",
+        "height": 60,
+        "width": 220,
+        "color": 1
+      },
+      "id": "eval2-sticky-llm",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst { week_number, year, run_id, themes_input } = item;\n\n// Parse GPT response\nlet parsed;\ntry {\n  const raw = item.choices[0].message.content;\n  parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;\n} catch (e) {\n  throw new Error(`Failed to parse GPT-4 response: ${e.message}`);\n}\n\nconst judgedThemes = parsed.themes || [];\nif (judgedThemes.length === 0) throw new Error('LLM returned no theme scores');\n\n// Build aggregate stats\nconst dims = ['enterprise_relevance', 'signal_type_accuracy', 'actionability', 'summary_quality'];\nconst avg = arr => arr.length ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : 0;\n\nconst allOverall = judgedThemes.map(t => parseFloat(t.scores?.overall || 0));\nconst dimAverages = {};\ndims.forEach(d => {\n  dimAverages[d] = avg(judgedThemes.map(t => t.scores?.[d] || 0));\n});\n\nconst sorted = [...judgedThemes].sort((a, b) => (b.scores?.overall || 0) - (a.scores?.overall || 0));\nconst topTheme = sorted[0];\nconst weakestTheme = sorted[sorted.length - 1];\n\n// Collect all flags across themes\nconst allFlags = judgedThemes.flatMap(t =>\n  (t.flags || []).map(f => `[${t.title}] ${f}`)\n);\n\nconst overallAvg = avg(allOverall);\nconst verdict = overallAvg >= 4.2 ? '\ud83d\udfe2 PUBLICATION READY'\n  : overallAvg >= 3.5 ? '\ud83d\udfe1 REVIEW FLAGGED THEMES'\n  : '\ud83d\udd34 NEEDS SIGNIFICANT REVISION';\n\nconst tokens = item.usage || {};\n\n// Build markdown report\nconst bar = score => '\u2588'.repeat(Math.round(score)) + '\u2591'.repeat(5 - Math.round(score));\n\nconst themeRows = judgedThemes.map(t => {\n  const s = t.scores;\n  return `| ${t.title.substring(0, 40)} | ${s.enterprise_relevance} | ${s.signal_type_accuracy} | ${s.actionability} | ${s.summary_quality} | **${s.overall}** |${t.flags?.length ? ` \u26a0\ufe0f ${t.flags.length} flag(s)` : ' \u2705'} |`;\n}).join('\\n');\n\nconst flagSection = allFlags.length > 0\n  ? `## \u26a0\ufe0f Flags to Address\\n${allFlags.map(f => `- ${f}`).join('\\n')}`\n  : `## \u2705 No Flags\\nAll themes passed quality review.`;\n\nconst report = [\n  `# CalmFalcon LLM Eval \u2014 Week ${week_number}/${year}`,\n  `## ${verdict}  \u00b7  Overall Score: ${overallAvg}/5.0`,\n  ``,\n  `**Run:** \\`${run_id}\\`  \u00b7  **Themes judged:** ${judgedThemes.length}  \u00b7  **LLM tokens used:** ${tokens.total_tokens || 'N/A'}`,\n  ``,\n  `## Dimension Averages`,\n  `| Dimension | Avg Score | Visual |`,\n  `|-----------|-----------|--------|`,\n  ...dims.map(d => `| ${d.replace(/_/g, ' ')} | ${dimAverages[d]}/5.0 | ${bar(dimAverages[d])} |`),\n  ``,\n  `## Per-Theme Scores`,\n  `| Theme | Relevance | Signal Type | Actionability | Summary | Overall | Status |`,\n  `|-------|-----------|-------------|---------------|---------|---------|--------|`,\n  themeRows,\n  ``,\n  `## \ud83c\udfc6 Top Theme: ${topTheme?.title}`,\n  `Score: ${topTheme?.scores?.overall}/5.0`,\n  ...(topTheme?.highlights || []).map(h => `- ${h}`),\n  ``,\n  `## \ud83d\udcc9 Weakest Theme: ${weakestTheme?.title}`,\n  `Score: ${weakestTheme?.scores?.overall}/5.0`,\n  ...(weakestTheme?.flags || []).map(f => `- ${f}`),\n  ``,\n  flagSection\n].join('\\n');\n\nconsole.log(report);\nconsole.log(`LLM Judge complete \u2014 overall avg: ${overallAvg}/5.0 | ${allFlags.length} flags | ${tokens.total_tokens || '?'} tokens`);\n\nreturn [{ json: {\n  report,\n  verdict,\n  overall_score: overallAvg,\n  dim_averages: dimAverages,\n  themes_scored: judgedThemes,\n  top_theme: { title: topTheme?.title, score: topTheme?.scores?.overall },\n  weakest_theme: { title: weakestTheme?.title, score: weakestTheme?.scores?.overall },\n  total_flags: allFlags.length,\n  all_flags: allFlags,\n  tokens_used: tokens.total_tokens || null,\n  week_number,\n  year,\n  run_id\n} }];"
+      },
+      "id": "eval2-parse",
+      "name": "Parse & Format Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "notes": "Parses GPT-4 JSON, builds aggregate stats (dim averages, top/weakest theme, all flags), renders markdown report."
+    },
+    {
+      "parameters": {
+        "content": "RESULTS\nParses scores, builds per-theme table + aggregate verdict. Check node output for the full markdown report.",
+        "height": 60,
+        "width": 220,
+        "color": 4
+      },
+      "id": "eval2-sticky-results",
+      "name": "Sticky Note5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        880,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { report, verdict, overall_score, dim_averages, themes_scored, total_flags, week_number, year, run_id } = $input.first().json;\n\nconst url = $vars.SUPABASE_URL;\nconst key = $vars.SUPABASE_KEY;\nif (!url || !key) throw new Error('Set SUPABASE_URL and SUPABASE_KEY as workflow variables');\n\nconst row = {\n  eval_type: 'llm_judge',\n  week_number,\n  year,\n  run_id: run_id || null,\n  score: `${overall_score}/5.0`,\n  overall_verdict: verdict,\n  report_markdown: report,\n  themes_scored: themes_scored || [],\n  dim_averages: dim_averages || {}\n};\n\nconst res = await this.helpers.httpRequest({\n  method: 'POST',\n  url: `${url}/rest/v1/eval_reports`,\n  headers: {\n    'apikey': key,\n    'Authorization': `Bearer ${key}`,\n    'Content-Type': 'application/json',\n    'Prefer': 'return=representation'\n  },\n  body: JSON.stringify([row])\n});\n\nconsole.log(`LLM Judge report saved \u2014 Week ${week_number}/${year} | score ${overall_score}/5.0 | ${total_flags} flags`);\nreturn [{ json: { saved: true, verdict, overall_score, total_flags, week_number, year } }];"
+      },
+      "id": "eval2-save",
+      "name": "Save Report to Supabase",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "notes": "Inserts one row into eval_reports with per-theme scores as JSONB. Run CREATE TABLE from supabase-schema.sql first."
+    },
+    {
+      "parameters": {
+        "content": "SAVE\nPersists verdict + per-theme scores + markdown to eval_reports table for trend tracking.",
+        "height": 60,
+        "width": 220,
+        "color": 4
+      },
+      "id": "eval2-sticky-save",
+      "name": "Sticky Note6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        -100
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Themes for Judging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Themes for Judging": {
+      "main": [
+        [
+          {
+            "node": "Build Judge Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Judge Prompt": {
+      "main": [
+        [
+          {
+            "node": "GPT-4 Turbo Judge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT-4 Turbo Judge": {
+      "main": [
+        [
+          {
+            "node": "Parse & Format Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Format Results": {
+      "main": [
+        [
+          {
+            "node": "Save Report to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "CalmFalcon"
+    },
+    {
+      "name": "Eval"
+    },
+    {
+      "name": "LLM Judge"
+    }
+  ]
+}

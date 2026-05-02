@@ -1,0 +1,96 @@
+# Word/Excel lock files
+~$*
+
+# Private Claude Code preferences
+CLAUDE.local.md
+
+# Binary presentation/certificate files
+*.pptx
+*.pdf
+
+# macOS
+.DS_Store
+
+# Binary docs (md/html versions preferred)
+*.docx
+*.xlsx
+
+# Claude Code local settings
+.claude/
+
+# Old backups
+n8n-workflows/backup*.json
+n8n-workflows/lastest_backup.json
+n8n-workflows/working_backup.json
+
+# Old pipeline (single-agent, replaced by multi-agent)
+n8n-workflows/calmfalcon-signals-pipeline.json
+calmfalcon-pipeline-workflow.json
+
+# Old prompts (v37 is current)
+n8n-workflows/calmfalcon-pipeline-prompts-v2.md
+
+# Old PRD versions (v4 is current)
+company-context/CalmFalcon - GenAI PRD v2.*
+company-context/CalmFalcon - GenAI PRD v3.*
+company-context/CalmFalcon - GenAI PRD v4.docx
+
+# PM workflow templates (not the product)
+sampleprompts/
+templates/
+
+# Generated outputs
+outputs/
+
+# Eval runs 1-39 (Run 40 + Agent Eval Runs 38-40 kept for showcase)
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 1 Results*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 2 Results*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 3 Results*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 4 Results*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 5 Results*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 7 Results*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 8 Results*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 9 Results*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Runs 10-12*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 13*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 14*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 15*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 16*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 17*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 18*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 19*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 20*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 29*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 30*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 31*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Runs 32*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 34*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 35*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 36*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 37*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 38*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 39*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 15 Template*
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 17 Template*
+company-context/evals/CalmFalcon Agent Eval — Run 30*
+company-context/evals/CalmFalcon Agent Eval - Run 33*
+company-context/evals/CalmFalcon Agent Eval - Run 34*
+
+# Old HTML files
+company-context/CalmFalcon - GenAI PRD v2.html
+company-context/evals/CalmFalcon MVP Eval Sheet.html
+company-context/evals/CalmFalcon Demo Day Slides.html
+company-context/evals/CalmFalcon MVP Eval Scorecard.html
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 1 Results.html
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 2 Results.html
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 3 Results.html
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 4 Results.html
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 5 Results.html
+company-context/evals/CalmFalcon MVP Eval Scorecard - Run 7 Results.html
+
+# Prompt engineering intro doc
+company-context/prompt_guidelines/_Intro to Prompt Engineering.docx
+
+# Golden set eval (in progress)
+n8n-workflows/calmfalcon-golden-set-pipeline.json
+n8n-workflows/calmfalcon-eval-golden-set.json

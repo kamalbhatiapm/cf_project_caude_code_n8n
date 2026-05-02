@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CalmFalcon — Setup Guide</title>
+  <style>
+    :root {
+      --bg:#0f1117; --surface:#1a1d27; --surface2:#232733; --surface3:#2a2e3d;
+      --border:#2e3344; --border-light:#3d4259;
+      --text:#e4e6ed; --muted:#8b8fa3; --dim:#5c6178;
+      --accent:#1C83E1; --accent-light:#3b9ff5; --accent-bg:rgba(28,131,225,0.1); --accent-border:rgba(28,131,225,0.3);
+      --green:#22c55e; --green-bg:rgba(34,197,94,0.1);
+      --red:#ef4444; --red-bg:rgba(239,68,68,0.1);
+      --yellow:#eab308; --yellow-bg:rgba(234,179,8,0.1);
+      --orange:#f97316; --orange-bg:rgba(249,115,22,0.1);
+      --purple:#a78bfa;
+      --cyan:#22d3ee;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;}
+
+    .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;}
+    .topbar h1{font-size:18px;font-weight:700;}
+    .topbar .badge{background:var(--accent);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;}
+    .topbar .subtitle{color:var(--muted);font-size:13px;margin-left:auto;}
+
+    .content{max-width:1100px;margin:0 auto;padding:32px;}
+
+    h2{font-size:20px;font-weight:700;margin:36px 0 16px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px;}
+    h2:first-child{margin-top:0;}
+    h3{font-size:15px;font-weight:600;margin:20px 0 8px;}
+    h4{font-size:13px;font-weight:600;margin:12px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+    p{margin:6px 0;font-size:14px;}
+    ul,ol{margin:8px 0 8px 24px;font-size:14px;}
+    li{margin:3px 0;}
+
+    table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;}
+    th{background:var(--surface2);text-align:left;padding:10px 12px;font-weight:600;border-bottom:2px solid var(--border);}
+    td{padding:8px 12px;border-bottom:1px solid var(--border);}
+    tr:hover td{background:rgba(28,131,225,0.03);}
+    .g{color:var(--green);} .r{color:var(--red);} .y{color:var(--yellow);} .o{color:var(--orange);}
+
+    code{background:var(--surface2);padding:1px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:12px;}
+    pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.5;overflow-x:auto;margin:12px 0;white-space:pre;}
+
+    .step{display:flex;gap:16px;margin:16px 0;align-items:flex-start;}
+    .step-num{background:var(--accent);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+    .step-content{flex:1;}
+    .step-content h4{margin-top:2px;text-transform:none;letter-spacing:0;color:var(--text);font-size:14px;}
+
+    .info-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden;margin:12px 0;}
+    .info-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);}
+    .info-card h4{margin-top:4px;}
+    .info-card p{font-size:13px;color:var(--muted);}
+
+    hr{border:none;border-top:1px solid var(--border);margin:24px 0;}
+    .footer{text-align:center;color:var(--muted);font-size:12px;padding:24px 0;border-top:1px solid var(--border);margin-top:32px;}
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>CalmFalcon</h1>
+  <span class="badge">Setup Guide</span>
+  <span class="subtitle">AI Signals Intelligence Platform &mdash; Pipeline v20</span>
+</div>
+
+<div class="content">
+
+<h2>Overview</h2>
+<p>This guide walks through setting up the complete CalmFalcon multi-agent pipeline from scratch. You will configure cloud accounts, import n8n workflows, connect API credentials, run a test pipeline, and enable weekly scheduling. Total setup time: <strong>~30&ndash;45 minutes</strong>.</p>
+
+<div class="info-card">
+  <h4>What You'll Build</h4>
+  <p>A 4-agent AI pipeline (Theme Selector &rarr; Theme Writer &times;8 &rarr; Verifier &rarr; Brief Writer) running weekly in n8n Cloud, ingesting 200+ signals from Exa + GitHub, scoring themes, and delivering a weekly brief stored in Supabase.</p>
+</div>
+
+<h2>Prerequisites</h2>
+<p>You'll need accounts (most have free tiers) and API keys for the following services:</p>
+<table>
+  <thead><tr><th>Service</th><th>Purpose</th><th>Required Key(s)</th><th>Cost</th></tr></thead>
+  <tr><td>n8n Cloud</td><td>Pipeline orchestration &amp; scheduling</td><td>&mdash;</td><td>~$20/mo (Starter)</td></tr>
+  <tr><td>OpenAI</td><td>GPT-4 Turbo for all 4 agents + LLM Judge</td><td><code>OPENAI_API_KEY</code></td><td>~$1.37/run</td></tr>
+  <tr><td>Exa</td><td>Web search (14 queries per run)</td><td><code>EXA_API_KEY</code></td><td>~$0.56/run</td></tr>
+  <tr><td>GitHub</td><td>3-tier trending (releases, new repos, velocity)</td><td><code>GITHUB_TOKEN</code></td><td>Free with token</td></tr>
+  <tr><td>Supabase</td><td>Database (themes, runs, eval reports)</td><td><code>SUPABASE_URL</code> + <code>SUPABASE_KEY</code></td><td>Free tier</td></tr>
+</table>
+
+<h2>Setup Steps</h2>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-content">
+    <h4>Create a Supabase Project</h4>
+    <p>Go to <code>supabase.com</code> &rarr; click <strong>New Project</strong>. Choose a region close to you. Once created, navigate to <strong>Project Settings &rarr; API</strong> and note down:</p>
+    <ul>
+      <li>Project URL (looks like <code>https://xxxxx.supabase.co</code>)</li>
+      <li>Service role key (under "Project API keys" &mdash; use the <strong>service_role</strong> one, not anon)</li>
+    </ul>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-content">
+    <h4>Run the Database Schema</h4>
+    <p>In Supabase, go to <strong>SQL Editor</strong> &rarr; <strong>New Query</strong>. Copy the contents of <code>n8n-workflows/supabase-schema.sql</code> into the editor and click <strong>Run</strong>. This creates <strong>8 tables</strong>:</p>
+    <ul>
+      <li><strong>Production (5):</strong> <code>pipeline_runs</code>, <code>themes</code>, <code>weekly_briefs</code>, <code>eval_reports</code>, <code>prompt_versions</code></li>
+      <li><strong>Golden Set (3):</strong> <code>golden_set_runs</code>, <code>golden_set_themes</code>, <code>golden_set_eval_scores</code></li>
+    </ul>
+    <p>Verify by going to the <strong>Table Editor</strong> &mdash; you should see all 8 tables listed.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-content">
+    <h4>Set Up n8n Cloud</h4>
+    <p>Sign up at <code>n8n.io</code> and create a new workspace. No installation needed &mdash; n8n Cloud is a managed SaaS platform. The Starter plan supports up to 5 active workflows, which is enough for this pipeline plus evals.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">4</div>
+  <div class="step-content">
+    <h4>Add Workflow Variables</h4>
+    <p>In n8n, go to <strong>Settings &rarr; Variables</strong> and add the following 5 variables:</p>
+    <pre>OPENAI_API_KEY   = sk-...
+EXA_API_KEY      = ...
+GITHUB_TOKEN     = ghp_...
+SUPABASE_URL     = https://xxxxx.supabase.co
+SUPABASE_KEY     = eyJhbGci...  (service_role key)</pre>
+    <p>These will be referenced by the workflow nodes using <code>{{ $vars.VARIABLE_NAME }}</code>.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">5</div>
+  <div class="step-content">
+    <h4>Import the Main Pipeline</h4>
+    <p>In n8n, click the <strong>&hellip;</strong> menu (top right) &rarr; <strong>Import from File</strong>. Select <code>calmfalcon-signals-pipeline-multi-agent.json</code>. Once imported, press <strong>Cmd+A</strong> then <strong>Tidy Up</strong> to auto-arrange the 34 nodes for readability.</p>
+    <p>You should see the full pipeline: Schedule Trigger &rarr; Save Prompt Version &rarr; Build Search Queries &rarr; [Exa + GitHub] &rarr; Merge &rarr; Process Signals &rarr; ... &rarr; Brief Writer &rarr; Save to Supabase.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">6</div>
+  <div class="step-content">
+    <h4>Import Eval Pipelines</h4>
+    <p>Import each of the following eval workflows <strong>separately</strong>:</p>
+    <ul>
+      <li><code>calmfalcon-eval-automated.json</code> &mdash; 13 deterministic checks (production)</li>
+      <li><code>calmfalcon-eval-llm-judge.json</code> &mdash; GPT-4 Turbo 4-dimension judge (production)</li>
+      <li><code>calmfalcon-eval-golden-set.json</code> &mdash; 9-check golden set scorecard <span class="y">(in progress)</span></li>
+    </ul>
+    <p>Each eval runs as a separate workflow that reads from Supabase tables populated by the main pipeline.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">7</div>
+  <div class="step-content">
+    <h4>Connect OpenAI Credentials</h4>
+    <p>In the main pipeline, click each LLM node and assign your OpenAI credential:</p>
+    <ul>
+      <li><strong>Theme Selector Model</strong></li>
+      <li><strong>Theme Writer Model</strong></li>
+      <li><strong>Verifier Model</strong></li>
+      <li><strong>Brief Model</strong></li>
+    </ul>
+    <p>Also do this for the <strong>LLM Judge</strong> node in the llm-judge eval workflow. If you don't have an OpenAI credential yet, click <strong>Create New</strong> and paste your <code>OPENAI_API_KEY</code>.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">8</div>
+  <div class="step-content">
+    <h4>Test Run the Main Pipeline</h4>
+    <p>Click <strong>Execute Workflow</strong> at the bottom of the canvas. The pipeline takes <strong>~3 minutes</strong> to complete. Watch the nodes light up as they execute. When done, verify in Supabase:</p>
+    <pre>SELECT run_id, total_themes, avg_confidence, status
+FROM pipeline_runs
+ORDER BY completed_at DESC
+LIMIT 1;</pre>
+    <p>You should see a row with <code>total_themes = 8</code> and <code>status = 'completed'</code>. Check the <code>themes</code> table to view the 8 generated themes.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">9</div>
+  <div class="step-content">
+    <h4>Run Production Evals</h4>
+    <p>Execute the automated eval workflow first (deterministic checks, ~10 seconds), then the LLM judge workflow (GPT-4 Turbo scoring, ~30 seconds). Verify results in Supabase:</p>
+    <pre>SELECT eval_type, score, overall_verdict, created_at
+FROM eval_reports
+ORDER BY created_at DESC
+LIMIT 2;</pre>
+    <p>You should see two rows: <code>automated</code> (score like "10/13") and <code>llm_judge</code> (score like "4.3/5.0" with verdict "PUBLICATION READY").</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">10</div>
+  <div class="step-content">
+    <h4>Run Golden Set Eval <span class="y" style="font-size:12px;font-weight:400;">(Optional &mdash; In Progress)</span></h4>
+    <p>Import <code>calmfalcon-golden-set-pipeline.json</code> as a separate workflow. Connect OpenAI credentials to its LLM nodes. Execute it to send 32 curated signals (gs-v2.1) through the full pipeline. Results saved to <code>golden_set_runs</code> + <code>golden_set_themes</code>.</p>
+    <p>Then run <code>calmfalcon-eval-golden-set.json</code> for the scorecard:</p>
+    <pre>SELECT north_star_pct, notes
+FROM golden_set_eval_scores
+ORDER BY scored_at DESC
+LIMIT 1;</pre>
+    <p style="color:var(--yellow);font-size:12px;margin-top:4px;">&#x26A0; Status: In progress &mdash; Save to Supabase routing currently being debugged. See backlog item #17.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">11</div>
+  <div class="step-content">
+    <h4>Enable Weekly Scheduling</h4>
+    <p>Toggle the main pipeline workflow to <strong>Active</strong> (top-right switch). The <strong>Schedule Trigger</strong> node fires every <strong>Monday at 6 AM</strong> (your n8n workspace timezone). You'll get a fresh brief delivered to Supabase every Monday morning.</p>
+    <p>To change the schedule, click the Schedule Trigger node and modify the cron expression.</p>
+  </div>
+</div>
+
+<h2>Troubleshooting</h2>
+<table>
+  <thead><tr><th>Issue</th><th>Cause</th><th>Fix</th></tr></thead>
+  <tr><td>OpenAI API error</td><td>Invalid key or no GPT-4 Turbo access</td><td>Verify key in <strong>Variables</strong>. Check GPT-4 Turbo access and credits at <code>platform.openai.com/usage</code>.</td></tr>
+  <tr><td>Exa API error</td><td>Rate limit or invalid key</td><td>Verify <code>EXA_API_KEY</code>. Free tier is 1000 req/day &mdash; each run uses 14.</td></tr>
+  <tr><td>Supabase error</td><td>Wrong URL or using anon key</td><td>Check URL format (<code>https://xxxxx.supabase.co</code>). Use <strong>service_role</strong> key, not anon.</td></tr>
+  <tr><td>GitHub rate limit</td><td>No token (60 req/hr default)</td><td>Add <code>GITHUB_TOKEN</code> to Variables for 5000 req/hr.</td></tr>
+  <tr><td>0 themes output</td><td>Verifier removed all themes</td><td>Check Verifier Agent output. May need to increase <code>max_tokens</code> in the LLM node options.</td></tr>
+  <tr><td>SyntaxError in code node</td><td>Escaped backticks in template literals</td><td>Check the code node for <code>\`</code> sequences &mdash; replace with plain backticks.</td></tr>
+  <tr><td>Theme Writer runs 0 times</td><td>Split Clusters returned empty array</td><td>Check that Theme Selector output contains valid <code>selected_clusters</code> array with 8 items.</td></tr>
+  <tr><td>Duplicate theme_ids</td><td>Old data conflict in Supabase UPSERT</td><td>Ensure theme_ids include run timestamp suffix (e.g. <code>theme-001-1774413902711</code>).</td></tr>
+</table>
+
+<h2>File Structure</h2>
+<pre>
+n8n-workflows/
+&nbsp;&nbsp;calmfalcon-signals-pipeline-multi-agent.json   Main pipeline (34 nodes)
+&nbsp;&nbsp;calmfalcon-eval-automated.json                 13-check automated eval
+&nbsp;&nbsp;calmfalcon-eval-llm-judge.json                 GPT-4 Turbo judge (4 dimensions)
+&nbsp;&nbsp;calmfalcon-golden-set-pipeline.json            Golden set pipeline (in progress)
+&nbsp;&nbsp;calmfalcon-eval-golden-set.json                Golden set eval (in progress)
+&nbsp;&nbsp;supabase-schema.sql                            Database schema (8 tables)
+&nbsp;&nbsp;calmfalcon-pipeline-prompts-v37.md             Prompt reference (v37, 4 agents)
+</pre>
+
+<div class="footer">
+  CalmFalcon AI Signals Intelligence Platform &mdash; Setup Guide &mdash; Pipeline v20<br>
+  34 nodes &nbsp;|&nbsp; 8 Supabase tables &nbsp;|&nbsp; 14 Exa queries &nbsp;|&nbsp; 3-tier GitHub
+</div>
+
+</div>
+
+</body>
+</html>
