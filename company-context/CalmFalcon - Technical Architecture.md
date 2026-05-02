@@ -521,7 +521,7 @@ Confidence levels:
 | Component | Where | Access |
 |-----------|-------|--------|
 | n8n pipeline | n8n Cloud (n8n.io) | Workflow editor |
-| Supabase | `railiynjtxafrbpmghmg.supabase.co` | REST API |
+| Supabase | `your-project.supabase.co` | REST API |
 | Frontend | GCP (V0 React app) | Web browser |
 | Workflow JSON | `n8n-workflows/calmfalcon-signals-pipeline-multi-agent.json` | Local file |
 | Eval workflows | `n8n-workflows/calmfalcon-eval-*.json` | Local files |
