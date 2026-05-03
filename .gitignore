@@ -35,9 +35,7 @@ company-context/CalmFalcon - GenAI PRD v2.*
 company-context/CalmFalcon - GenAI PRD v3.*
 company-context/CalmFalcon - GenAI PRD v4.docx
 
-# PM workflow templates (not the product)
-sampleprompts/
-templates/
+# PM workflow templates and sample prompts (included for reference)
 
 # Generated outputs (except key research files)
 outputs/*
