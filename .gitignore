@@ -39,8 +39,10 @@ company-context/CalmFalcon - GenAI PRD v4.docx
 sampleprompts/
 templates/
 
-# Generated outputs
-outputs/
+# Generated outputs (except key research files)
+outputs/*
+!outputs/market-research-ai-signals-intelligence-dashboard.md
+!outputs/user-research-ai-signals-intelligence-dashboard.md
 
 # Eval runs 1-39 (Run 40 + Agent Eval Runs 38-40 kept for showcase)
 company-context/evals/CalmFalcon MVP Eval Scorecard - Run 1 Results*
